@@ -3,18 +3,19 @@ const puppeteer = require('puppeteer-core');
 const { cleanDollar } = require('../utils/formatHelpers');
 
 const getOpaDetails = async (opaAccountNumber) => {
+  let browser = null;
+
   try {
-    const browser = await puppeteer.launch({
+    browser = await puppeteer.launch({
       args: chromium.args,
-      executablePath: await chromium.executablePath || '/usr/bin/chromium-browser',
+      executablePath: await chromium.executablePath,
       headless: chromium.headless,
     });
 
     const page = await browser.newPage();
     const url = `https://property.phila.gov/?p=${opaAccountNumber}`;
-
     await page.goto(url, { waitUntil: 'domcontentloaded' });
-    await page.waitForSelector('.property');
+    await page.waitForSelector('.property', { timeout: 10000 });
 
     const result = await page.evaluate(() => {
       const text = document.body.innerText;
@@ -43,8 +44,6 @@ const getOpaDetails = async (opaAccountNumber) => {
       };
     });
 
-    await browser.close();
-
     return {
       owner: result.owner,
       salePrice: cleanDollar(result.salePrice),
@@ -55,8 +54,11 @@ const getOpaDetails = async (opaAccountNumber) => {
   } catch (error) {
     console.error('OPA scraper error:', error);
     return null;
+  } finally {
+    if (browser !== null) {
+      await browser.close();
+    }
   }
 };
 
 module.exports = { getOpaDetails };
-
