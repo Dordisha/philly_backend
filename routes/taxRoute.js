@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getOpaDetails } = require('../services/opaScraper');
 
+// Use path parameter instead of query param
 router.get('/:account', async (req, res) => {
   const account = req.params.account;
   if (!account) return res.status(400).json({ error: 'Missing account number' });
