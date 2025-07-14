@@ -8,9 +8,8 @@ const getOpaDetails = async (opaAccountNumber) => {
   try {
     browser = await puppeteer.launch({
       args: chromium.args,
-      executablePath: process.env.AWS_EXECUTABLE_PATH || await chromium.executablePath || '/usr/bin/google-chrome-stable',
-
-      headless: chromium.headless,
+      executablePath: (await chromium.executablePath) || '/usr/bin/google-chrome-stable',
+      headless: true, // Force headless true on server
     });
 
     const page = await browser.newPage();
