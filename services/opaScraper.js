@@ -2,7 +2,11 @@ const puppeteer = require('puppeteer');
 
 async function fetchTaxBalance(opaNumber) {
   const url = `https://property.phila.gov/?p=${opaNumber}`;
-  const browser = await puppeteer.launch({ headless: true });
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox'], // ✅ required for Render.com
+  });
+
   const page = await browser.newPage();
   await page.goto(url, { waitUntil: 'networkidle2' });
 
