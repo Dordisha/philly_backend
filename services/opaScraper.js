@@ -6,9 +6,11 @@ const getOpaDetails = async (opaAccountNumber) => {
   let browser = null;
 
   try {
+    const executablePath = await chromium.executablePath;
+
     browser = await puppeteer.launch({
       args: chromium.args,
-      executablePath: (await chromium.executablePath) || '/usr/bin/google-chrome-stable',
+      executablePath: executablePath || undefined, // only use if available
       headless: true,
     });
 
@@ -17,10 +19,11 @@ const getOpaDetails = async (opaAccountNumber) => {
     await page.goto(url, { waitUntil: 'domcontentloaded' });
     await page.waitForSelector('.property', { timeout: 10000 });
 
-    const rawText = await page.evaluate(() => document.body.innerText);
-    console.log('📄 RAW PAGE TEXT:\n', rawText); // This helps us debug on Render logs
+    const text = await page.evaluate(() => document.body.innerText);
 
-    return { debugText: rawText }; // TEMPORARY: Return the raw content
+    return {
+      rawText: text, // temporarily return full dump
+    };
   } catch (error) {
     console.error('OPA scraper error:', error);
     return { error: error.message };
