@@ -16,8 +16,8 @@ const getOpaDetails = async (opaAccountNumber) => {
 
     const page = await browser.newPage();
     const url = `https://property.phila.gov/?p=${opaAccountNumber}`;
-    await page.goto(url, { waitUntil: 'domcontentloaded' });
-    await page.waitForSelector('.property', { timeout: 10000 });
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+    await page.waitForTimeout(3000); // give extra time for dynamic content
 
     const text = await page.evaluate(() => document.body.innerText);
 
