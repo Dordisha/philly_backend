@@ -1,5 +1,5 @@
 const chromium = require('chrome-aws-lambda');
-const puppeteer = require('puppeteer-core');
+const puppeteer = require('puppeteer');
 const { cleanDollar } = require('../utils/formatHelpers');
 
 const getOpaDetails = async (opaAccountNumber) => {
