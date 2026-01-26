@@ -1,3 +1,6 @@
 
 # ignore local apps
 fatloss_16week_app/
+
+# never commit dependencies
+node_modules/
