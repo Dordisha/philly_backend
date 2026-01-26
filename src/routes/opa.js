@@ -28,7 +28,7 @@ const COL_SDATE = process.env.OPA_COL_SALE_DATE || "sale_date";
 // Known columns
 const COL_OWNER2 = "owner_2";
 
-// Address part columns (exist in lookup2 + public)
+// Address part columns
 const COL_HNO = "house_number";
 const COL_SDIR = "street_direction";
 const COL_SNAME = "street_name";
@@ -40,11 +40,11 @@ const COL_ZIP = "zip_code";
 // Only exists in PUBLIC table
 const COL_LOC = "location";
 
-// ✅ Exists in PUBLIC table (per your header screenshot)
+// Exists in PUBLIC table
 const COL_ZONING = process.env.OPA_COL_ZONING || "zoning";
 
 // =========================
-// helpers
+// Helpers
 // =========================
 const toNumber = (v) => {
   if (v == null) return null;
@@ -55,16 +55,26 @@ const toNumber = (v) => {
 };
 
 const sanitizeLike = (s) =>
-  String(s).replace(/'/g, "''").replace(/%/g, "\\%").replace(/_/g, "\\_").trim();
+  String(s)
+    .replace(/'/g, "''")
+    .replace(/%/g, "\\%")
+    .replace(/_/g, "\\_")
+    .trim();
 
 const normalizeAddressForMatch = (raw) =>
-  String(raw).toUpperCase().replace(/[,\t]+/g, " ").replace(/\s+/g, " ").trim();
+  String(raw)
+    .toUpperCase()
+    .replace(/[,\t]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
 const normalizeAddressOut = (raw) =>
   raw == null ? null : String(raw).replace(/\s+/g, " ").trim();
 
+const said = (v) => v != null && String(v).trim().length > 0;
+
 // =========================
-// ping
+// Ping
 // =========================
 router.get("/_ping", (req, res) =>
   res.json({ ok: true, route: "/api/opa/_ping", ts: Date.now() })
@@ -127,7 +137,8 @@ async function lookupByOpa(opa) {
 
   const r = rows[0];
 
-  const ownerCombined = [r.owner_1, r.owner_2].filter(Boolean).join(" & ") || null;
+  const ownerCombined =
+    [r.owner_1, r.owner_2].filter(Boolean).join(" & ") || null;
 
   const streetLine = [
     r.house_number,
@@ -139,9 +150,9 @@ async function lookupByOpa(opa) {
     .filter(Boolean)
     .join(" ");
 
-  const address = normalizeAddressOut([streetLine, r.unit].filter(Boolean).join(" ")) || null;
+  const address =
+    normalizeAddressOut([streetLine, r.unit].filter(Boolean).join(" ")) || null;
 
-  // ✅ zoning comes from PUBLIC table
   const zoning = await fetchZoningFromPublicByOpa(opaRaw);
 
   return {
@@ -151,36 +162,34 @@ async function lookupByOpa(opa) {
     market_value: toNumber(r.market_value),
     sale_price: toNumber(r.sale_price),
     sale_date: r.sale_date || null,
-
-    zoning, // ✅ replaced assessed_value
-
-    zillow: { status: null, price: null, url: null },
+    zoning,
     tax: { lookup_url: "https://tax-services.phila.gov/_/" },
   };
 }
 
 // =========================
-// /search supports BOTH:
-// - OPA lookup:     /api/opa/search?opa=#########   (FAST)
-// - Address search: /api/opa/search?address=...&limit=5 (PUBLIC table)
+// /search endpoint
 // =========================
 router.get("/search", async (req, res) => {
   try {
     const { opa, address, limit = "5" } = req.query;
 
-    // ---- OPA mode (FAST)
+    // ---- OPA mode
     if (opa && said(opa)) {
       if (!/^\d{6,12}$/.test(String(opa))) {
         return res.status(400).json({ error: "Invalid OPA format" });
       }
       const result = await lookupByOpa(opa);
-      if (!result) return res.status(404).json({ error: "OPA not found", opa: String(opa) });
+      if (!result)
+        return res.status(404).json({ error: "OPA not found", opa });
       return res.json({ ok: true, mode: "opa", result });
     }
 
-    // ---- Address mode (PUBLIC table)
+    // ---- Address mode
     if (!address || !said(address)) {
-      return res.status(400).json({ error: "Missing ?address (or provide ?opa=#########)" });
+      return res
+        .status(400)
+        .json({ error: "Missing ?address (or provide ?opa=#########)" });
     }
 
     const lim = Math.min(Math.max(parseInt(limit, 10) || 5, 1), 25);
@@ -193,6 +202,7 @@ router.get("/search", async (req, res) => {
 
     const zipMatch = addrSansCity.match(/\b\d{5}\b/);
     const zip = zipMatch ? zipMatch[0] : null;
+
     const addrCore = zip
       ? addrSansCity.replace(zip, "").replace(/\s+/g, " ").trim()
       : addrSansCity;
@@ -240,46 +250,50 @@ router.get("/search", async (req, res) => {
     `;
 
     const rows = await runAthena(q);
+
     const results = rows.map((r) => {
-      const ownerCombined = [r.owner_1, r.owner_2].filter(Boolean).join(" & ");
+      const ownerCombined =
+        [r.owner_1, r.owner_2].filter(Boolean).join(" & ") || null;
       return {
         opa: r.opa_number,
         address: normalizeAddressOut(r.location) || null,
-        owner: ownerCombined || null,
+        owner: ownerCombined,
         market_value: toNumber(r.market_value),
         sale_price: toNumber(r.sale_price),
         sale_date: r.sale_date || null,
-        zillow: { status: null, price: null, url: null },
         tax: { lookup_url: "https://tax-services.phila.gov/_/" },
       };
     });
 
-    return res.json({ ok: true, mode: "address", query: address, count: results.length, results });
+    return res.json({
+      ok: true,
+      mode: "address",
+      query: address,
+      count: results.length,
+      results,
+    });
   } catch (e) {
     console.error("[OPA/SEARCH] error:", e);
     return res.status(500).json({ error: e.message });
   }
 });
 
-// helper used above
-function said(v) {
-  return v != null && String(v).trim().length > 0;
-}
-
 // =========================
-// Detail by OPA (kept)
-// GET /api/opa?opa=#########  (FAST)
+// Detail by OPA
 // =========================
 router.get("/", async (req, res) => {
   try {
     const { opa } = req.query;
-    if (!opa) return res.status(400).json({ error: "Missing ?opa=OPA_NUMBER" });
+    if (!opa)
+      return res.status(400).json({ error: "Missing ?opa=OPA_NUMBER" });
+
     if (!/^\d{6,12}$/.test(String(opa))) {
       return res.status(400).json({ error: "Invalid OPA format" });
     }
 
     const result = await lookupByOpa(opa);
-    if (!result) return res.status(404).json({ error: "OPA not found", opa: String(opa) });
+    if (!result)
+      return res.status(404).json({ error: "OPA not found", opa });
 
     return res.json({ ok: true, mode: "opa", ...result });
   } catch (e) {
