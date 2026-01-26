@@ -1,0 +1,108 @@
+import express from "express";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
+import opaRouter from "./routes/opa.js";
+import {
+  athenaSelect1,
+  athenaListTables,
+  athenaDescribe,
+  athenaSample,
+} from "./lib/athenaDiag.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || "127.0.0.1";
+
+console.log(`🚦 index.js loaded from: file://${__filename}`);
+
+app.use(express.json());
+
+// Liveness
+app.get("/healthz", (req, res) => res.json({ ok: true }));
+
+// Simple root route
+app.get("/_root", (req, res) => res.json({ msg: "root alive", ts: Date.now() }));
+
+// OPA router
+console.log("🔗 Mounting OPA router at /api/opa");
+app.use("/api/opa", opaRouter);
+
+// --- Athena diagnostic routes (temporary) ---
+app.get("/__athena/select1", async (req, res) => {
+  try {
+    const rows = await athenaSelect1();
+    res.json({ rows });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get("/__athena/tables", async (req, res) => {
+  try {
+    const rows = await athenaListTables();
+    res.json({ rows });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get("/__athena/describe", async (req, res) => {
+  const { table = process.env.OPA_TABLE || "opa_properties_public" } = req.query;
+  try {
+    const rows = await athenaDescribe(table);
+    res.json({ rows });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get("/__athena/sample", async (req, res) => {
+  const { table = process.env.OPA_TABLE || "opa_properties_public", limit = "5" } = req.query;
+  try {
+    const rows = await athenaSample(table, parseInt(limit, 10));
+    res.json({ rows });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 404 fallback (JSON, not HTML)
+app.use((req, res) => res.status(404).json({ error: "Not found", path: req.path }));
+
+app.listen(PORT, HOST, () => {
+  console.log(`🚀 Server running at http://${HOST}:${PORT}`);
+});
+import express from "express";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
+import opaRouter from "./routes/opa.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Logging so we can verify which file actually runs
+console.log(`🚦 index.js loaded from: file://${__filename}`);
+
+app.use(express.json());
+
+// Liveness
+app.get("/healthz", (req, res) => res.json({ ok: true }));
+
+// Simple root route (curl sanity)
+app.get("/_root", (req, res) => res.json({ msg: "root alive", ts: Date.now() }));
+
+// Mount OPA router
+console.log("🔗 Mounting OPA router at /api/opa");
+app.use("/api/opa", opaRouter);
+
+app.use((req, res) => res.status(404).json({ error: "Not found", path: req.path }));
+
+app.listen(PORT, "127.0.0.1", () => {
+  console.log(`🚀 Server running at http://127.0.0.1:${PORT}`);
+});

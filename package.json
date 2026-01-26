@@ -1,24 +1,16 @@
 {
   "name": "philly_backend",
-  "version": "1.0.1",
-  "description": "",
-  "main": "index.js",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/index.js",
   "scripts": {
-    "start": "node index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-    "_deployNote": "force deploy with puppeteer",
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "engines": {
-    "node": "20.x"
+    "dev": "node -r dotenv/config src/index.js",
+    "start": "node -r dotenv/config src/index.js"
   },
   "dependencies": {
-    "chrome-aws-lambda": "^10.1.0",
+    "@aws-sdk/client-athena": "^3.920.0",
     "cors": "^2.8.5",
-    "express": "^5.1.0",
-    "puppeteer": "^10.4.0"
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0"
   }
 }
