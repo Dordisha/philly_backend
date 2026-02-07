@@ -15,7 +15,7 @@ const DATABASE = process.env.ATHENA_DATABASE || "philly_data";
 // Optimized table (NO location column)
 const TABLE_LOOKUP = process.env.ATHENA_TABLE || "opa_properties_lookup2";
 
-// Raw table (HAS location column) for address search
+// Raw table (HAS location column) for address search + suggestions
 const TABLE_PUBLIC = process.env.OPA_PUBLIC_TABLE || "opa_properties_public";
 
 // Column mappings
@@ -57,6 +57,8 @@ const toNumber = (v) => {
 const sanitizeLike = (s) =>
   String(s).replace(/'/g, "''").replace(/%/g, "\\%").replace(/_/g, "\\_").trim();
 
+const sanitizeSql = (s) => String(s).replace(/'/g, "''").trim();
+
 const normalizeAddressForMatch = (raw) =>
   String(raw).toUpperCase().replace(/[,\t]+/g, " ").replace(/\s+/g, " ").trim();
 
@@ -65,6 +67,111 @@ const normalizeAddressOut = (raw) =>
 
 function said(v) {
   return v != null && String(v).trim().length > 0;
+}
+
+// Parsing helpers (Option A)
+const DIRS = new Set(["N", "S", "E", "W", "NE", "NW", "SE", "SW"]);
+const DESIG = new Set([
+  "ST",
+  "STREET",
+  "AVE",
+  "AV",
+  "AVENUE",
+  "RD",
+  "ROAD",
+  "BLVD",
+  "BOULEVARD",
+  "DR",
+  "DRIVE",
+  "LN",
+  "LANE",
+  "CT",
+  "COURT",
+  "PL",
+  "PLACE",
+  "PKWY",
+  "PARKWAY",
+  "CIR",
+  "CIRCLE",
+  "TER",
+  "TERRACE",
+  "WAY",
+]);
+
+function stripCityStateZip(addrUpper) {
+  // remove common city/state tokens, keep just street line
+  return addrUpper
+    .replace(/\b(PHILADELPHIA|PA|PENNSYLVANIA|USA)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function extractZip(addrUpper) {
+  const m = addrUpper.match(/\b\d{5}\b/);
+  return m ? m[0] : null;
+}
+
+function removeZip(addrUpper, zip) {
+  if (!zip) return addrUpper;
+  return addrUpper.replace(zip, " ").replace(/\s+/g, " ").trim();
+}
+
+function parseAddressParts(addrCoreUpper) {
+  // expects normalized uppercased street line (no city/state)
+  // returns { houseNumber, streetDirection, streetName, streetDesignation }
+  const m = addrCoreUpper.match(/^(\d+)\s+(.+)$/);
+  if (!m)
+    return {
+      houseNumber: null,
+      streetDirection: null,
+      streetName: null,
+      streetDesignation: null,
+    };
+
+  const houseNumber = parseInt(m[1], 10);
+  if (!Number.isFinite(houseNumber))
+    return {
+      houseNumber: null,
+      streetDirection: null,
+      streetName: null,
+      streetDesignation: null,
+    };
+
+  let rest = m[2].trim();
+
+  // Drop apt/unit tail if present
+  rest = rest.replace(/\b(APT|APARTMENT|UNIT|STE|SUITE|#)\b.*$/i, "").trim();
+
+  const tokens = rest.split(/\s+/).filter(Boolean);
+  if (!tokens.length)
+    return { houseNumber, streetDirection: null, streetName: null, streetDesignation: null };
+
+  let streetDirection = null;
+  if (tokens.length && DIRS.has(tokens[0])) {
+    streetDirection = tokens.shift();
+  }
+
+  let streetDesignation = null;
+  if (tokens.length && DESIG.has(tokens[tokens.length - 1])) {
+    streetDesignation = tokens.pop();
+  }
+
+  const streetName = tokens.length ? tokens.join(" ") : null;
+
+  return { houseNumber, streetDirection, streetName, streetDesignation };
+}
+
+// Suggest parser: works with partial input like "526 mar"
+function parseSuggestQuery(qUpper) {
+  const q = qUpper.trim();
+  const m = q.match(/^(\d+)\s*(.*)$/);
+  if (!m) {
+    // No house number prefix
+    return { housePrefix: null, streetPrefix: q };
+  }
+  const housePrefix = m[1] || null;
+  const rest = (m[2] || "").trim();
+  return { housePrefix, streetPrefix: rest };
 }
 
 // =========================
@@ -82,10 +189,9 @@ async function fetchZoningFromPublicByOpa(opaRaw) {
     SELECT
       NULLIF(TRIM(${COL_ZONING}), '') AS zoning
     FROM ${DATABASE}.${TABLE_PUBLIC}
-    WHERE ${COL_OPA} = '${opaRaw}'
+    WHERE ${COL_OPA} = '${sanitizeSql(opaRaw)}'
     LIMIT 1
   `;
-
   const rows = await runAthena(q);
   if (!rows.length) return null;
   const v = rows[0].zoning;
@@ -121,8 +227,8 @@ async function lookupByOpa(opa) {
       ${COL_UNIT} AS unit,
       ${COL_ZIP} AS zip_code
     FROM ${DATABASE}.${TABLE_LOOKUP}
-    WHERE pn_prefix2 = '${pnPrefix2}'
-      AND ${COL_OPA} = '${opaRaw}'
+    WHERE pn_prefix2 = '${sanitizeSql(pnPrefix2)}'
+      AND ${COL_OPA} = '${sanitizeSql(opaRaw)}'
     LIMIT 1
   `;
 
@@ -130,22 +236,14 @@ async function lookupByOpa(opa) {
   if (!rows.length) return null;
 
   const r = rows[0];
-
   const ownerCombined = [r.owner_1, r.owner_2].filter(Boolean).join(" & ") || null;
 
-  const streetLine = [
-    r.house_number,
-    r.street_direction,
-    r.street_name,
-    r.street_designation,
-    r.suffix,
-  ]
+  const streetLine = [r.house_number, r.street_direction, r.street_name, r.street_designation, r.suffix]
     .filter(Boolean)
     .join(" ");
 
   const address = normalizeAddressOut([streetLine, r.unit].filter(Boolean).join(" ")) || null;
 
-  // zoning comes from PUBLIC table
   const zoning = await fetchZoningFromPublicByOpa(opaRaw);
 
   return {
@@ -161,9 +259,99 @@ async function lookupByOpa(opa) {
 }
 
 // =========================
+// SUGGEST (autocomplete)
+// GET /api/opa/suggest?query=526 mar&limit=10
+// Returns address+opa suggestions for dropdown
+// =========================
+router.get("/suggest", async (req, res) => {
+  try {
+    const { query, limit = "10" } = req.query;
+
+    if (!query || !said(query)) {
+      return res.status(400).json({ error: "Missing ?query" });
+    }
+
+    const lim = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 25);
+
+    // Normalize & strip city/state/zip
+    const qNorm = normalizeAddressForMatch(query);
+    const qSansCity = stripCityStateZip(qNorm);
+    const zip = extractZip(qSansCity);
+    const core = removeZip(qSansCity, zip);
+
+    // Parse partial house + street prefix
+    const { housePrefix, streetPrefix } = parseSuggestQuery(core);
+
+    // Require at least something meaningful (avoid scanning whole table)
+    const streetPrefixClean = streetPrefix.replace(/[^\w\s]/g, " ").replace(/\s+/g, " ").trim();
+
+    if (!housePrefix && streetPrefixClean.length < 3) {
+      return res.json({ ok: true, query: String(query), suggestions: [] });
+    }
+
+    const houseLike = housePrefix ? sanitizeLike(housePrefix) : null;
+    const streetLike = streetPrefixClean ? sanitizeLike(streetPrefixClean) : null;
+
+    // We use:
+    // - house_number exact prefix (CAST to VARCHAR then LIKE '526%')
+    // - street_name begins/contains prefix
+    // - zip optional
+    const q = `
+      WITH base AS (
+        SELECT
+          ${COL_OPA} AS opa_number,
+          ${COL_LOC} AS location,
+          ${COL_ZIP} AS zip_code,
+          ${COL_HNO} AS house_number,
+          NULLIF(TRIM(${COL_SDIR}), '') AS street_direction,
+          NULLIF(TRIM(${COL_SNAME}), '') AS street_name,
+          NULLIF(TRIM(${COL_SDES}), '') AS street_designation
+        FROM ${DATABASE}.${TABLE_PUBLIC}
+        WHERE 1=1
+          ${zip ? `AND ${COL_ZIP} = '${sanitizeSql(zip)}'` : ``}
+          ${
+            houseLike
+              ? `AND CAST(${COL_HNO} AS VARCHAR) LIKE '${houseLike}%'`
+              : ``
+          }
+          ${
+            streetLike
+              ? `AND UPPER(COALESCE(${COL_SNAME}, '')) LIKE UPPER('${streetLike}%')`
+              : ``
+          }
+      )
+      SELECT DISTINCT
+        opa_number,
+        location,
+        zip_code
+      FROM base
+      WHERE location IS NOT NULL AND TRIM(location) <> ''
+      ORDER BY location
+      LIMIT ${lim}
+    `;
+
+    const rows = await runAthena(q);
+
+    const suggestions = rows.map((r) => ({
+      address: normalizeAddressOut(r.location) || null,
+      opa: r.opa_number ? String(r.opa_number).trim() : null,
+      zip: r.zip_code ? String(r.zip_code).trim() : null,
+    })).filter((s) => s.address && s.opa);
+
+    return res.json({ ok: true, query: String(query), count: suggestions.length, suggestions });
+  } catch (e) {
+    console.error("[OPA/SUGGEST] error:", e);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// =========================
 // /search supports BOTH:
 // - OPA lookup:     /api/opa/search?opa=#########   (FAST)
-// - Address search: /api/opa/search?address=...&limit=1 (PUBLIC table)
+// - Address search: /api/opa/search?address=...&limit=1
+// Behavior:
+// - If user typed a house number -> MUST match exact house_number (no fuzzy fallback)
+// - If no house number -> fuzzy search allowed
 // =========================
 router.get("/search", async (req, res) => {
   try {
@@ -186,22 +374,29 @@ router.get("/search", async (req, res) => {
 
     const lim = Math.min(Math.max(parseInt(limit, 10) || 1, 1), 25);
 
+    // Normalize input and strip city/state
     const addrNorm = normalizeAddressForMatch(address);
-    const addrSansCity = addrNorm
-      .replace(/\b(PHILADELPHIA|PA|PENNSYLVANIA|USA)\b/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
+    const addrSansCity = stripCityStateZip(addrNorm);
 
-    const zipMatch = addrSansCity.match(/\b\d{5}\b/);
-    const zip = zipMatch ? zipMatch[0] : null;
-    const addrCore = zip
-      ? addrSansCity.replace(zip, "").replace(/\s+/g, " ").trim()
-      : addrSansCity;
+    const zip = extractZip(addrSansCity);
+    const addrCore = removeZip(addrSansCity, zip);
 
-    const addrLike = sanitizeLike(addrCore);
+    // Parse for exact match attempt
+    const parsed = parseAddressParts(addrCore);
+    const hasHouse = Number.isFinite(parsed.houseNumber) && parsed.houseNumber > 0;
+    const hasStreet = said(parsed.streetName);
 
-    const q = `
-      WITH base AS (
+    let rows = [];
+
+    // -------------------------
+    // 1) Exact match first (Option A)
+    // -------------------------
+    if (hasHouse && hasStreet) {
+      const streetNameSql = sanitizeSql(parsed.streetName);
+      const streetDirSql = parsed.streetDirection ? sanitizeSql(parsed.streetDirection) : null;
+      const streetDesSql = parsed.streetDesignation ? sanitizeSql(parsed.streetDesignation) : null;
+
+      const exactQ = `
         SELECT
           ${COL_OPA}      AS opa_number,
           ${COL_LOC}      AS location,
@@ -216,38 +411,81 @@ router.get("/search", async (req, res) => {
             ),
             SUBSTR(${COL_SDATE}, 1, 10)
           ) AS sale_date,
-          ${COL_ZIP} AS zip_code,
-          NULLIF(TRIM(${COL_ZONING}), '') AS zoning,
-          TRIM(CONCAT_WS(
-            ' ',
-            ${COL_HNO},
-            NULLIF(${COL_SDIR}, ''),
-            NULLIF(${COL_SNAME}, ''),
-            NULLIF(${COL_SDES}, '')
-          )) AS rebuilt_addr
+          NULLIF(TRIM(${COL_ZONING}), '') AS zoning
         FROM ${DATABASE}.${TABLE_PUBLIC}
-      )
-      SELECT
-        opa_number, location, owner_1, owner_2,
-        market_value, sale_price, sale_date, zoning
-      FROM base
-      WHERE
-        (
-          UPPER(location) LIKE '%' || UPPER('${addrLike}') || '%'
-          OR UPPER(rebuilt_addr) LIKE '%' || UPPER('${addrLike}') || '%'
-        )
-        ${zip ? `AND zip_code = '${zip}'` : ``}
-      ORDER BY location
-      LIMIT ${lim}
-    `;
+        WHERE
+          ${COL_HNO} = ${parsed.houseNumber}
+          AND UPPER(${COL_SNAME}) = UPPER('${streetNameSql}')
+          ${streetDirSql ? `AND UPPER(COALESCE(${COL_SDIR}, '')) = UPPER('${streetDirSql}')` : ``}
+          ${streetDesSql ? `AND UPPER(COALESCE(${COL_SDES}, '')) = UPPER('${streetDesSql}')` : ``}
+          ${zip ? `AND ${COL_ZIP} = '${sanitizeSql(zip)}'` : ``}
+        ORDER BY ${COL_LOC}
+        LIMIT ${lim}
+      `;
 
-    const rows = await runAthena(q);
+      rows = await runAthena(exactQ);
 
-    // If you request limit=1, return a single "result" for frontend simplicity
-    if (!rows.length) {
-      return res.status(404).json({ error: "No match for address", address: String(address) });
+      // ✅ STRICT: if user typed a house number and exact match failed, do NOT fuzzy-match to another house number
+      if (!rows.length) {
+        return res.status(404).json({ error: "Address Not Found", address: String(address) });
+      }
     }
 
+    // -------------------------
+    // 2) Fuzzy match ONLY if no house number was provided
+    // -------------------------
+    if (!rows.length) {
+      const addrLike = sanitizeLike(addrCore);
+
+      const fuzzyQ = `
+        WITH base AS (
+          SELECT
+            ${COL_OPA}      AS opa_number,
+            ${COL_LOC}      AS location,
+            ${COL_OWNER1}   AS owner_1,
+            COALESCE(${COL_OWNER2}, '') AS owner_2,
+            CAST(COALESCE(NULLIF(${COL_MARKET}, ''), '0') AS BIGINT) AS market_value,
+            CAST(COALESCE(NULLIF(${COL_SPRICE}, ''), '0') AS BIGINT) AS sale_price,
+            COALESCE(
+              DATE_FORMAT(
+                TRY(FROM_ISO8601_TIMESTAMP(REGEXP_REPLACE(NULLIF(${COL_SDATE}, ''), ' ', 'T'))),
+                '%Y-%m-%d'
+              ),
+              SUBSTR(${COL_SDATE}, 1, 10)
+            ) AS sale_date,
+            ${COL_ZIP} AS zip_code,
+            NULLIF(TRIM(${COL_ZONING}), '') AS zoning,
+            TRIM(CONCAT_WS(
+              ' ',
+              ${COL_HNO},
+              NULLIF(${COL_SDIR}, ''),
+              NULLIF(${COL_SNAME}, ''),
+              NULLIF(${COL_SDES}, '')
+            )) AS rebuilt_addr
+          FROM ${DATABASE}.${TABLE_PUBLIC}
+        )
+        SELECT
+          opa_number, location, owner_1, owner_2,
+          market_value, sale_price, sale_date, zoning
+        FROM base
+        WHERE
+          (
+            UPPER(location) LIKE '%' || UPPER('${addrLike}') || '%'
+            OR UPPER(rebuilt_addr) LIKE '%' || UPPER('${addrLike}') || '%'
+          )
+          ${zip ? `AND zip_code = '${sanitizeSql(zip)}'` : ``}
+        ORDER BY location
+        LIMIT ${lim}
+      `;
+
+      rows = await runAthena(fuzzyQ);
+    }
+
+    if (!rows.length) {
+      return res.status(404).json({ error: "Address Not Found", address: String(address) });
+    }
+
+    // If you request limit=1, return a single "result" for frontend simplicity
     if (lim === 1) {
       const r = rows[0];
       const ownerCombined = [r.owner_1, r.owner_2].filter(Boolean).join(" & ");
