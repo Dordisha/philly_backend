@@ -44,6 +44,16 @@ const COL_LOC = "location";
 const COL_ZONING = process.env.OPA_COL_ZONING || "zoning";
 
 // =========================
+// Build stamp (for Render verification)
+// =========================
+const BUILD_STAMP =
+  process.env.RENDER_GIT_COMMIT ||
+  process.env.GIT_COMMIT ||
+  process.env.COMMIT_SHA ||
+  process.env.SOURCE_VERSION ||
+  `local-${new Date().toISOString()}`;
+
+// =========================
 // helpers
 // =========================
 const toNumber = (v) => {
@@ -170,11 +180,86 @@ function parseSuggestQuery(qUpper) {
   return { housePrefix, streetPrefix: rest };
 }
 
+async function fetchSuggestionsForAddress(rawAddress, lim = 5) {
+  try {
+    const qNorm = normalizeAddressForMatch(rawAddress);
+    const qSansCity = stripCityStateZip(qNorm);
+    const zip = extractZip(qSansCity);
+    const core = removeZip(qSansCity, zip);
+
+    const { housePrefix, streetPrefix } = parseSuggestQuery(core);
+    const streetPrefixClean = streetPrefix.replace(/[^\w\s]/g, " ").replace(/\s+/g, " ").trim();
+
+    // if we don't have at least a house prefix or 3+ letters of street, skip
+    if (!housePrefix && streetPrefixClean.length < 3) return [];
+
+    const houseLike = housePrefix ? sanitizeLike(housePrefix) : null;
+    const streetLike = streetPrefixClean ? sanitizeLike(streetPrefixClean) : null;
+
+    const q = `
+      WITH base AS (
+        SELECT
+          ${COL_OPA} AS opa_number,
+          ${COL_LOC} AS location,
+          ${COL_ZIP} AS zip_code,
+          ${COL_HNO} AS house_number
+        FROM ${DATABASE}.${TABLE_PUBLIC}
+        WHERE 1=1
+          ${zip ? `AND ${COL_ZIP} = '${sanitizeSql(zip)}'` : ``}
+          ${houseLike ? `AND CAST(${COL_HNO} AS VARCHAR) LIKE '${houseLike}%'` : ``}
+          ${
+            streetLike
+              ? `AND UPPER(COALESCE(${COL_SNAME}, '')) LIKE UPPER('${streetLike}%')`
+              : ``
+          }
+      )
+      SELECT DISTINCT
+        opa_number,
+        location,
+        zip_code
+      FROM base
+      WHERE location IS NOT NULL AND TRIM(location) <> ''
+      ORDER BY location
+      LIMIT ${Math.min(Math.max(parseInt(lim, 10) || 5, 1), 10)}
+    `;
+
+    const rows = await runAthena(q);
+
+    return rows
+      .map((r) => ({
+        address: normalizeAddressOut(r.location) || null,
+        opa: r.opa_number ? String(r.opa_number).trim() : null,
+        zip: r.zip_code ? String(r.zip_code).trim() : null,
+      }))
+      .filter((s) => s.address && s.opa);
+  } catch (e) {
+    console.error("[OPA/SUGGEST_INTERNAL] error:", e);
+    return [];
+  }
+}
+
+async function addressNotFound(res, rawAddress) {
+  const suggestions = await fetchSuggestionsForAddress(rawAddress, 5);
+  return res.status(404).json({
+    ok: false,
+    code: "ADDRESS_NOT_FOUND",
+    message: "Address Not Found",
+    query: String(rawAddress),
+    suggestions, // array of { address, opa, zip }
+  });
+}
+
 // =========================
 // ping
 // =========================
 router.get("/_ping", (req, res) =>
-  res.json({ ok: true, route: "/api/opa/_ping", ts: Date.now() })
+  res.json({
+    ok: true,
+    route: "/api/opa/_ping",
+    buildStamp: BUILD_STAMP,
+    nodeEnv: process.env.NODE_ENV || null,
+    ts: Date.now(),
+  })
 );
 
 // =========================
@@ -294,11 +379,7 @@ router.get("/suggest", async (req, res) => {
         FROM ${DATABASE}.${TABLE_PUBLIC}
         WHERE 1=1
           ${zip ? `AND ${COL_ZIP} = '${sanitizeSql(zip)}'` : ``}
-          ${
-            houseLike
-              ? `AND CAST(${COL_HNO} AS VARCHAR) LIKE '${houseLike}%'`
-              : ``
-          }
+          ${houseLike ? `AND CAST(${COL_HNO} AS VARCHAR) LIKE '${houseLike}%'` : ``}
           ${
             streetLike
               ? `AND UPPER(COALESCE(${COL_SNAME}, '')) LIKE UPPER('${streetLike}%')`
@@ -350,7 +431,14 @@ router.get("/search", async (req, res) => {
         return res.status(400).json({ error: "Invalid OPA format" });
       }
       const result = await lookupByOpa(opa);
-      if (!result) return res.status(404).json({ error: "OPA not found", opa: String(opa) });
+      if (!result) {
+        return res.status(404).json({
+          ok: false,
+          code: "OPA_NOT_FOUND",
+          message: "OPA not found",
+          opa: String(opa),
+        });
+      }
       return res.json({ ok: true, mode: "opa", result });
     }
 
@@ -410,8 +498,9 @@ router.get("/search", async (req, res) => {
 
       rows = await runAthena(exactQ);
 
+      // STRICT: if house number provided, exact match only
       if (!rows.length) {
-        return res.status(404).json({ error: "Address Not Found", address: String(address) });
+        return await addressNotFound(res, address);
       }
     }
 
@@ -466,7 +555,7 @@ router.get("/search", async (req, res) => {
     }
 
     if (!rows.length) {
-      return res.status(404).json({ error: "Address Not Found", address: String(address) });
+      return await addressNotFound(res, address);
     }
 
     // If you request limit=1, return a single "result" for frontend simplicity
@@ -521,7 +610,14 @@ router.get("/", async (req, res) => {
     }
 
     const result = await lookupByOpa(opa);
-    if (!result) return res.status(404).json({ error: "OPA not found", opa: String(opa) });
+    if (!result) {
+      return res.status(404).json({
+        ok: false,
+        code: "OPA_NOT_FOUND",
+        message: "OPA not found",
+        opa: String(opa),
+      });
+    }
 
     return res.json({ ok: true, mode: "opa", ...result });
   } catch (e) {
