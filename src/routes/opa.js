@@ -99,7 +99,6 @@ const DESIG = new Set([
 ]);
 
 function stripCityStateZip(addrUpper) {
-  // remove common city/state tokens, keep just street line
   return addrUpper
     .replace(/\b(PHILADELPHIA|PA|PENNSYLVANIA|USA)\b/g, " ")
     .replace(/\s+/g, " ")
@@ -117,8 +116,6 @@ function removeZip(addrUpper, zip) {
 }
 
 function parseAddressParts(addrCoreUpper) {
-  // expects normalized uppercased street line (no city/state)
-  // returns { houseNumber, streetDirection, streetName, streetDesignation }
   const m = addrCoreUpper.match(/^(\d+)\s+(.+)$/);
   if (!m)
     return {
@@ -166,7 +163,6 @@ function parseSuggestQuery(qUpper) {
   const q = qUpper.trim();
   const m = q.match(/^(\d+)\s*(.*)$/);
   if (!m) {
-    // No house number prefix
     return { housePrefix: null, streetPrefix: q };
   }
   const housePrefix = m[1] || null;
@@ -261,7 +257,6 @@ async function lookupByOpa(opa) {
 // =========================
 // SUGGEST (autocomplete)
 // GET /api/opa/suggest?query=526 mar&limit=10
-// Returns address+opa suggestions for dropdown
 // =========================
 router.get("/suggest", async (req, res) => {
   try {
@@ -273,16 +268,13 @@ router.get("/suggest", async (req, res) => {
 
     const lim = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 25);
 
-    // Normalize & strip city/state/zip
     const qNorm = normalizeAddressForMatch(query);
     const qSansCity = stripCityStateZip(qNorm);
     const zip = extractZip(qSansCity);
     const core = removeZip(qSansCity, zip);
 
-    // Parse partial house + street prefix
     const { housePrefix, streetPrefix } = parseSuggestQuery(core);
 
-    // Require at least something meaningful (avoid scanning whole table)
     const streetPrefixClean = streetPrefix.replace(/[^\w\s]/g, " ").replace(/\s+/g, " ").trim();
 
     if (!housePrefix && streetPrefixClean.length < 3) {
@@ -292,20 +284,13 @@ router.get("/suggest", async (req, res) => {
     const houseLike = housePrefix ? sanitizeLike(housePrefix) : null;
     const streetLike = streetPrefixClean ? sanitizeLike(streetPrefixClean) : null;
 
-    // We use:
-    // - house_number exact prefix (CAST to VARCHAR then LIKE '526%')
-    // - street_name begins/contains prefix
-    // - zip optional
     const q = `
       WITH base AS (
         SELECT
           ${COL_OPA} AS opa_number,
           ${COL_LOC} AS location,
           ${COL_ZIP} AS zip_code,
-          ${COL_HNO} AS house_number,
-          NULLIF(TRIM(${COL_SDIR}), '') AS street_direction,
-          NULLIF(TRIM(${COL_SNAME}), '') AS street_name,
-          NULLIF(TRIM(${COL_SDES}), '') AS street_designation
+          ${COL_HNO} AS house_number
         FROM ${DATABASE}.${TABLE_PUBLIC}
         WHERE 1=1
           ${zip ? `AND ${COL_ZIP} = '${sanitizeSql(zip)}'` : ``}
@@ -332,11 +317,13 @@ router.get("/suggest", async (req, res) => {
 
     const rows = await runAthena(q);
 
-    const suggestions = rows.map((r) => ({
-      address: normalizeAddressOut(r.location) || null,
-      opa: r.opa_number ? String(r.opa_number).trim() : null,
-      zip: r.zip_code ? String(r.zip_code).trim() : null,
-    })).filter((s) => s.address && s.opa);
+    const suggestions = rows
+      .map((r) => ({
+        address: normalizeAddressOut(r.location) || null,
+        opa: r.opa_number ? String(r.opa_number).trim() : null,
+        zip: r.zip_code ? String(r.zip_code).trim() : null,
+      }))
+      .filter((s) => s.address && s.opa);
 
     return res.json({ ok: true, query: String(query), count: suggestions.length, suggestions });
   } catch (e) {
@@ -347,11 +334,11 @@ router.get("/suggest", async (req, res) => {
 
 // =========================
 // /search supports BOTH:
-// - OPA lookup:     /api/opa/search?opa=#########   (FAST)
+// - OPA lookup:     /api/opa/search?opa=#########
 // - Address search: /api/opa/search?address=...&limit=1
-// Behavior:
-// - If user typed a house number -> MUST match exact house_number (no fuzzy fallback)
-// - If no house number -> fuzzy search allowed
+// STRICT:
+// - if house number provided -> exact match only, else 404 Address Not Found
+// - if no house number -> fuzzy allowed
 // =========================
 router.get("/search", async (req, res) => {
   try {
@@ -374,14 +361,12 @@ router.get("/search", async (req, res) => {
 
     const lim = Math.min(Math.max(parseInt(limit, 10) || 1, 1), 25);
 
-    // Normalize input and strip city/state
     const addrNorm = normalizeAddressForMatch(address);
     const addrSansCity = stripCityStateZip(addrNorm);
 
     const zip = extractZip(addrSansCity);
     const addrCore = removeZip(addrSansCity, zip);
 
-    // Parse for exact match attempt
     const parsed = parseAddressParts(addrCore);
     const hasHouse = Number.isFinite(parsed.houseNumber) && parsed.houseNumber > 0;
     const hasStreet = said(parsed.streetName);
@@ -414,7 +399,7 @@ router.get("/search", async (req, res) => {
           NULLIF(TRIM(${COL_ZONING}), '') AS zoning
         FROM ${DATABASE}.${TABLE_PUBLIC}
         WHERE
-          ${COL_HNO} = ${parsed.houseNumber}
+          TRY_CAST(${COL_HNO} AS INTEGER) = ${parsed.houseNumber}
           AND UPPER(${COL_SNAME}) = UPPER('${streetNameSql}')
           ${streetDirSql ? `AND UPPER(COALESCE(${COL_SDIR}, '')) = UPPER('${streetDirSql}')` : ``}
           ${streetDesSql ? `AND UPPER(COALESCE(${COL_SDES}, '')) = UPPER('${streetDesSql}')` : ``}
@@ -425,7 +410,6 @@ router.get("/search", async (req, res) => {
 
       rows = await runAthena(exactQ);
 
-      // ✅ STRICT: if user typed a house number and exact match failed, do NOT fuzzy-match to another house number
       if (!rows.length) {
         return res.status(404).json({ error: "Address Not Found", address: String(address) });
       }
