@@ -1,4 +1,9 @@
 // ✅ FILE: philly_backend/src/routes/opa.js
+// LOOKUP2-SUGGEST-FIX (v2):
+// - Fixes /suggest for number-first inputs like "526 MARK", "1803 S BRO", "1539 S Lam"
+//   by matching against the *built address string* (addrSql) instead of only street_name.
+// - Improves STRICT /search designation matching: street_designation OR suffix can satisfy "ST/AVE/...".
+
 import { Router } from "express";
 import { fileURLToPath } from "url";
 import { runAthena } from "../lib/athenaRun.js";
@@ -172,11 +177,12 @@ function parseAddressParts(addrCoreUpper) {
   return { houseNumber, streetDirection, streetName, streetDesignation };
 }
 
-// Suggest parser: supports "1539 S Lam", "1539 Lambert", "526 mar"
+// ✅ Suggest parser:
+// supports "1539 S Lam", "1539 Lambert", "526 mar", "1803 S BRO"
 function parseSuggestParts(coreUpper) {
   const q = coreUpper.trim();
   const m = q.match(/^(\d+)\s*(.*)$/);
-  if (!m) return { housePrefix: null, streetPrefix: q };
+  if (!m) return { housePrefix: null, streetDir: null, streetPrefix: q };
 
   const housePrefix = m[1] || null;
 
@@ -185,14 +191,19 @@ function parseSuggestParts(coreUpper) {
 
   const tokens = rest.split(/\s+/).filter(Boolean).map((t) => t.toUpperCase());
 
-  // remove leading direction
-  if (tokens.length && DIRS.has(tokens[0])) tokens.shift();
+  // capture direction
+  let streetDir = null;
+  if (tokens.length && DIRS.has(tokens[0])) {
+    streetDir = tokens.shift();
+  }
 
-  // remove trailing designation
-  if (tokens.length && DESIG.has(tokens[tokens.length - 1])) tokens.pop();
+  // remove trailing designation for prefix searches (user typing "ST" shouldn't be required)
+  if (tokens.length && DESIG.has(tokens[tokens.length - 1])) {
+    tokens.pop();
+  }
 
   const streetPrefix = tokens.join(" ").trim();
-  return { housePrefix, streetPrefix };
+  return { housePrefix, streetDir, streetPrefix };
 }
 
 function buildAddrSql() {
@@ -301,14 +312,31 @@ async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
     const zip = extractZip(qSansCity);
     const core = removeZip(qSansCity, zip);
 
-    const { housePrefix, streetPrefix } = parseSuggestParts(core);
+    const { housePrefix, streetDir, streetPrefix } = parseSuggestParts(core);
 
-    if (!housePrefix && streetPrefix.length < 3) return [];
+    // If no house prefix, require >=3 chars to avoid huge scans
+    if (!housePrefix && (!streetPrefix || streetPrefix.length < 3)) return [];
 
     const housePrefixSql = housePrefix ? sanitizeSql(housePrefix) : null;
+    const streetDirSql = streetDir ? sanitizeSql(streetDir) : null;
     const streetPrefixSql = streetPrefix ? sanitizeSql(streetPrefix) : null;
 
     const addrSql = buildAddrSql();
+
+    // ✅ KEY FIX:
+    // For number-first queries ("526 MARK"), streetPrefix is matched against the *built address*,
+    // so it works regardless of how the dataset splits street columns internally.
+    //
+    // We anchor at the beginning: "526 MARK" should match "526 MARKET ST".
+    const anchorPrefixSql = sanitizeSql(
+      [
+        housePrefixSql ? housePrefixSql : null,
+        streetDirSql ? streetDirSql : null,
+        streetPrefixSql ? streetPrefixSql : null,
+      ]
+        .filter(Boolean)
+        .join(" ")
+    );
 
     const q = `
       SELECT
@@ -324,8 +352,15 @@ async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
             : ``
         }
         ${
+          // If user typed a direction (e.g., "S"), keep it as a filter.
+          streetDirSql
+            ? `AND UPPER(COALESCE(${COL_SDIR}, '')) = UPPER('${streetDirSql}')`
+            : ``
+        }
+        ${
+          // If they typed any street prefix (MARK/BRO/LAM...), use the anchored built-address prefix.
           streetPrefixSql
-            ? `AND starts_with(UPPER(COALESCE(${COL_SNAME}, '')), UPPER('${streetPrefixSql}'))`
+            ? `AND starts_with(UPPER(${addrSql}), UPPER('${anchorPrefixSql}'))`
             : ``
         }
       ORDER BY address_out
@@ -477,7 +512,15 @@ router.get("/search", async (req, res) => {
           TRY_CAST(${COL_HNO} AS INTEGER) = ${parsed.houseNumber}
           AND UPPER(${COL_SNAME}) = UPPER('${streetNameSql}')
           ${streetDirSql ? `AND UPPER(COALESCE(${COL_SDIR}, '')) = UPPER('${streetDirSql}')` : ``}
-          ${streetDesSql ? `AND UPPER(COALESCE(${COL_SDES}, '')) = UPPER('${streetDesSql}')` : ``}
+          ${
+            // ✅ FIX: designation might live in street_designation OR suffix depending on the dataset
+            streetDesSql
+              ? `AND (
+                   UPPER(COALESCE(${COL_SDES}, '')) = UPPER('${streetDesSql}')
+                   OR UPPER(COALESCE(${COL_SUFFIX}, '')) = UPPER('${streetDesSql}')
+                 )`
+              : ``
+          }
           ${zip ? `AND ${COL_ZIP} = '${sanitizeSql(zip)}'` : ``}
         LIMIT 1
       `;
@@ -577,7 +620,13 @@ router.get("/search", async (req, res) => {
       };
     });
 
-    return res.json({ ok: true, mode: "address", query: address, count: results.length, results });
+    return res.json({
+      ok: true,
+      mode: "address",
+      query: address,
+      count: results.length,
+      results,
+    });
   } catch (e) {
     console.error("[OPA/SEARCH] error:", e);
     return res.status(500).json({ ok: false, error: e.message });
