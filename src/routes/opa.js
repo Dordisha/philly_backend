@@ -1,4 +1,15 @@
 // ✅ FILE: philly_backend/src/routes/opa.js
+// LOOKUP2-SUGGEST-FIX — full file (debug routes correctly placed BEFORE export)
+//
+// What this version does:
+// 1) /api/opa/suggest
+//    - tries LOOKUP2 (house prefix + street prefix using street_combo)
+//    - if 0 and user provided house+street -> falls back to PUBLIC.location matching
+// 2) /api/opa/__whoami  (DEBUG) proves which file is loaded + buildStamp
+// 3) /api/opa/__debug_suggest (DEBUG) proves Athena counts + shows sample rows + SQL
+//
+// IMPORTANT: export default router is LAST LINE.
+
 import { Router } from "express";
 import { fileURLToPath } from "url";
 import { runAthena } from "../lib/athenaRun.js";
@@ -24,7 +35,6 @@ const COL_OWNER1 = process.env.OPA_COL_OWNER || "owner_1";
 const COL_MARKET = process.env.OPA_COL_MARKET_VALUE || "market_value";
 const COL_SPRICE = process.env.OPA_COL_SALE_PRICE || "sale_price";
 const COL_SDATE = process.env.OPA_COL_SALE_DATE || "sale_date";
-
 const COL_OWNER2 = "owner_2";
 
 // Address part columns
@@ -192,7 +202,6 @@ function parseSuggestParts(coreUpper) {
 }
 
 function buildAddrSql() {
-  // builds a user-friendly address from lookup/public parts
   return `
     TRIM(CONCAT_WS(
       ' ',
@@ -272,7 +281,6 @@ async function lookupByOpa(opa) {
     .join(" ");
 
   const address = normalizeAddressOut([streetLine, r.unit].filter(Boolean).join(" ")) || null;
-
   const zoning = await fetchZoningFromPublicByOpa(opaRaw);
 
   return {
@@ -289,9 +297,8 @@ async function lookupByOpa(opa) {
 
 // =========================
 // ✅ SUGGESTIONS
-// Strategy:
-// - Try LOOKUP2 (structured) first
-// - If house+street returns 0, FALLBACK to PUBLIC.location prefix match
+// - Try LOOKUP2 first
+// - If 0 and house+street present -> fallback to PUBLIC.location
 // =========================
 async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
   try {
@@ -301,7 +308,6 @@ async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
     const core = removeZip(qSansCity, zip);
 
     const { housePrefix, streetDir, streetPrefix } = parseSuggestParts(core);
-
     const limitSql = Math.min(Math.max(parseInt(lim, 10) || 10, 1), 25);
 
     if (!housePrefix && (!streetPrefix || streetPrefix.length < 3)) return [];
@@ -312,7 +318,6 @@ async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
 
     const addrSql = buildAddrSql();
 
-    // Lookup2 street combo (covers suffix/designation inconsistencies)
     const streetComboSql = `
       UPPER(TRIM(CONCAT_WS(
         ' ',
@@ -323,7 +328,7 @@ async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
     `;
 
     // -------------------------
-    // 1) LOOKUP2 attempt
+    // 1) LOOKUP2
     // -------------------------
     const whereLookup = `
       1=1
@@ -332,14 +337,10 @@ async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
       ${streetPrefixSql ? `AND ${streetComboSql} LIKE UPPER('${streetPrefixSql}%')` : ``}
     `;
 
-    // Direction is OPTIONAL for autocomplete; prefer it but don’t require it.
     const qLookupPreferredDir =
       streetDirSql && housePrefixSql && streetPrefixSql
         ? `
-          SELECT
-            ${COL_OPA} AS opa_number,
-            ${addrSql} AS address_out,
-            ${COL_ZIP} AS zip_code
+          SELECT ${COL_OPA} AS opa_number, ${addrSql} AS address_out, ${COL_ZIP} AS zip_code
           FROM ${DATABASE}.${TABLE_LOOKUP}
           WHERE ${whereLookup}
             AND UPPER(COALESCE(${COL_SDIR}, '')) = UPPER('${streetDirSql}')
@@ -349,10 +350,7 @@ async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
         : null;
 
     const qLookupNoDir = `
-      SELECT
-        ${COL_OPA} AS opa_number,
-        ${addrSql} AS address_out,
-        ${COL_ZIP} AS zip_code
+      SELECT ${COL_OPA} AS opa_number, ${addrSql} AS address_out, ${COL_ZIP} AS zip_code
       FROM ${DATABASE}.${TABLE_LOOKUP}
       WHERE ${whereLookup}
       ORDER BY address_out
@@ -360,12 +358,8 @@ async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
     `;
 
     let rows = [];
-    if (qLookupPreferredDir) {
-      rows = await runAthena(qLookupPreferredDir);
-    }
-    if (!rows.length) {
-      rows = await runAthena(qLookupNoDir);
-    }
+    if (qLookupPreferredDir) rows = await runAthena(qLookupPreferredDir);
+    if (!rows.length) rows = await runAthena(qLookupNoDir);
 
     let suggestions =
       (rows || [])
@@ -380,23 +374,15 @@ async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
 
     // -------------------------
     // 2) FALLBACK: PUBLIC.location
-    // Only do fallback when we have house+street (your failing case).
-    // This matches how real autocomplete tools work.
     // -------------------------
     if (!housePrefixSql || !streetPrefixSql) return [];
 
-    // Build a simple "needle" like: "526 MARKET" or "1539 S LAM"
     const needle = sanitizeSql(
       [housePrefixSql, streetDirSql || null, streetPrefixSql].filter(Boolean).join(" ")
     );
 
-    // Prefer starts_with(location, needle) for speed.
-    // If direction is supplied and the dataset differs, the `OR` catches it.
     const qPublic = `
-      SELECT
-        ${COL_OPA} AS opa_number,
-        ${COL_LOC} AS address_out,
-        ${COL_ZIP} AS zip_code
+      SELECT ${COL_OPA} AS opa_number, ${COL_LOC} AS address_out, ${COL_ZIP} AS zip_code
       FROM ${DATABASE}.${TABLE_PUBLIC}
       WHERE
         (
@@ -451,262 +437,19 @@ router.get("/_ping", (req, res) =>
 );
 
 // =========================
-// SUGGEST (autocomplete)
-// GET /api/opa/suggest?query=1539 S Lam&limit=10
+// DEBUG (TEMP) — prove file + build
+// GET /api/opa/__whoami
 // =========================
-router.get("/suggest", async (req, res) => {
-  try {
-    const { query, limit = "10" } = req.query;
-
-    if (!query || !said(query)) {
-      return res.status(400).json({ ok: false, error: "Missing ?query" });
-    }
-
-    const lim = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 25);
-
-    const suggestions = await fetchSuggestionsFromLookup(query, lim);
-
-    return res.json({
-      ok: true,
-      query: String(query),
-      count: suggestions.length,
-      suggestions,
-    });
-  } catch (e) {
-    console.error("[OPA/SUGGEST] error:", e);
-    return res.status(500).json({ ok: false, error: e.message });
-  }
+router.get("/__whoami", (req, res) => {
+  return res.json({
+    ok: true,
+    route: "/api/opa/__whoami",
+    buildStamp: BUILD_STAMP,
+    file: `file://${__filename}`,
+    ts: Date.now(),
+  });
 });
 
-// =========================
-// /search supports BOTH:
-// - OPA lookup:     /api/opa/search?opa=#########
-// - Address search: /api/opa/search?address=...&limit=1
-// STRICT:
-// - if house number provided -> exact match only, else 404 Address Not Found (+ suggestions)
-// - if no house number -> fuzzy allowed (public)
-// =========================
-router.get("/search", async (req, res) => {
-  try {
-    const { opa, address, limit = "1" } = req.query;
-
-    // ---- OPA mode
-    if (opa && said(opa)) {
-      if (!/^\d{6,12}$/.test(String(opa))) {
-        return res.status(400).json({ ok: false, error: "Invalid OPA format" });
-      }
-      const result = await lookupByOpa(opa);
-      if (!result) {
-        return res.status(404).json({
-          ok: false,
-          code: "OPA_NOT_FOUND",
-          message: "OPA not found",
-          opa: String(opa),
-        });
-      }
-      return res.json({ ok: true, mode: "opa", result });
-    }
-
-    // ---- Address mode
-    if (!address || !said(address)) {
-      return res.status(400).json({
-        ok: false,
-        error: "Missing ?address (or provide ?opa=#########)",
-      });
-    }
-
-    const lim = Math.min(Math.max(parseInt(limit, 10) || 1, 1), 25);
-
-    const addrNorm = normalizeAddressForMatch(address);
-    const addrSansCity = stripCityStateZip(addrNorm);
-    const zip = extractZip(addrSansCity);
-    const addrCore = removeZip(addrSansCity, zip);
-
-    const parsed = parseAddressParts(addrCore);
-    const hasHouse = Number.isFinite(parsed.houseNumber) && parsed.houseNumber > 0;
-    const hasStreet = said(parsed.streetName);
-
-    // -------------------------
-    // 1) STRICT exact match (LOOKUP table first)
-    // -------------------------
-    if (hasHouse && hasStreet) {
-      const streetNameSql = sanitizeSql(parsed.streetName);
-      const streetDirSql = parsed.streetDirection ? sanitizeSql(parsed.streetDirection) : null;
-      const streetDesSql = parsed.streetDesignation ? sanitizeSql(parsed.streetDesignation) : null;
-
-      const addrSql = buildAddrSql();
-
-      const exactLookupQ = `
-        SELECT
-          ${COL_OPA} AS opa_number,
-          ${addrSql} AS address_out,
-          ${COL_OWNER1} AS owner_1,
-          COALESCE(${COL_OWNER2}, '') AS owner_2,
-          CAST(COALESCE(NULLIF(${COL_MARKET}, ''), '0') AS BIGINT) AS market_value,
-          CAST(COALESCE(NULLIF(${COL_SPRICE}, ''), '0') AS BIGINT) AS sale_price,
-          COALESCE(
-            DATE_FORMAT(
-              TRY(FROM_ISO8601_TIMESTAMP(REGEXP_REPLACE(NULLIF(${COL_SDATE}, ''), ' ', 'T'))),
-              '%Y-%m-%d'
-            ),
-            SUBSTR(${COL_SDATE}, 1, 10)
-          ) AS sale_date
-        FROM ${DATABASE}.${TABLE_LOOKUP}
-        WHERE
-          TRY_CAST(${COL_HNO} AS INTEGER) = ${parsed.houseNumber}
-          AND UPPER(${COL_SNAME}) = UPPER('${streetNameSql}')
-          ${streetDirSql ? `AND UPPER(COALESCE(${COL_SDIR}, '')) = UPPER('${streetDirSql}')` : ``}
-          ${
-            // ✅ FIX: designation might live in street_designation OR suffix depending on the dataset
-            streetDesSql
-              ? `AND (
-                   UPPER(COALESCE(${COL_SDES}, '')) = UPPER('${streetDesSql}')
-                   OR UPPER(COALESCE(${COL_SUFFIX}, '')) = UPPER('${streetDesSql}')
-                 )`
-              : ``
-          }
-          ${zip ? `AND ${COL_ZIP} = '${sanitizeSql(zip)}'` : ``}
-        LIMIT 1
-      `;
-
-      const rows = await runAthena(exactLookupQ);
-
-      if (!rows.length) {
-        return await addressNotFound(res, address);
-      }
-
-      const r = rows[0];
-      const ownerCombined = [r.owner_1, r.owner_2].filter(Boolean).join(" & ") || null;
-      const zoning = await fetchZoningFromPublicByOpa(String(r.opa_number).trim());
-
-      const result = {
-        opa: r.opa_number,
-        address: normalizeAddressOut(r.address_out) || null,
-        owner: ownerCombined,
-        market_value: toNumber(r.market_value),
-        sale_price: toNumber(r.sale_price),
-        sale_date: r.sale_date || null,
-        zoning: zoning || null,
-        tax: { lookup_url: "https://tax-services.phila.gov/_/" },
-      };
-
-      return res.json({ ok: true, mode: "address", result });
-    }
-
-    // -------------------------
-    // 2) Fuzzy match ONLY if no house number provided (PUBLIC)
-    // -------------------------
-    const addrNeedle = sanitizeSql(addrCore);
-
-    const fuzzyQ = `
-      WITH base AS (
-        SELECT
-          ${COL_OPA}      AS opa_number,
-          ${COL_LOC}      AS location,
-          ${COL_OWNER1}   AS owner_1,
-          COALESCE(${COL_OWNER2}, '') AS owner_2,
-          CAST(COALESCE(NULLIF(${COL_MARKET}, ''), '0') AS BIGINT) AS market_value,
-          CAST(COALESCE(NULLIF(${COL_SPRICE}, ''), '0') AS BIGINT) AS sale_price,
-          COALESCE(
-            DATE_FORMAT(
-              TRY(FROM_ISO8601_TIMESTAMP(REGEXP_REPLACE(NULLIF(${COL_SDATE}, ''), ' ', 'T'))),
-              '%Y-%m-%d'
-            ),
-            SUBSTR(${COL_SDATE}, 1, 10)
-          ) AS sale_date,
-          ${COL_ZIP} AS zip_code,
-          NULLIF(TRIM(${COL_ZONING}), '') AS zoning
-        FROM ${DATABASE}.${TABLE_PUBLIC}
-      )
-      SELECT
-        opa_number, location, owner_1, owner_2, market_value, sale_price, sale_date, zoning
-      FROM base
-      WHERE
-        strpos(UPPER(COALESCE(location, '')), UPPER('${addrNeedle}')) > 0
-        ${zip ? `AND zip_code = '${sanitizeSql(zip)}'` : ``}
-      ORDER BY location
-      LIMIT ${lim}
-    `;
-
-    const rows = await runAthena(fuzzyQ);
-
-    if (!rows.length) {
-      return await addressNotFound(res, address);
-    }
-
-    if (lim === 1) {
-      const r = rows[0];
-      const ownerCombined = [r.owner_1, r.owner_2].filter(Boolean).join(" & ");
-      const result = {
-        opa: r.opa_number,
-        address: normalizeAddressOut(r.location) || null,
-        owner: ownerCombined || null,
-        market_value: toNumber(r.market_value),
-        sale_price: toNumber(r.sale_price),
-        sale_date: r.sale_date || null,
-        zoning: r.zoning ? String(r.zoning).trim() : null,
-        tax: { lookup_url: "https://tax-services.phila.gov/_/" },
-      };
-      return res.json({ ok: true, mode: "address", result });
-    }
-
-    const results = rows.map((r) => {
-      const ownerCombined = [r.owner_1, r.owner_2].filter(Boolean).join(" & ");
-      return {
-        opa: r.opa_number,
-        address: normalizeAddressOut(r.location) || null,
-        owner: ownerCombined || null,
-        market_value: toNumber(r.market_value),
-        sale_price: toNumber(r.sale_price),
-        sale_date: r.sale_date || null,
-        zoning: r.zoning ? String(r.zoning).trim() : null,
-        tax: { lookup_url: "https://tax-services.phila.gov/_/" },
-      };
-    });
-
-    return res.json({
-      ok: true,
-      mode: "address",
-      query: address,
-      count: results.length,
-      results,
-    });
-  } catch (e) {
-    console.error("[OPA/SEARCH] error:", e);
-    return res.status(500).json({ ok: false, error: e.message });
-  }
-});
-
-// =========================
-// Detail by OPA (kept)
-// GET /api/opa?opa=#########
-// =========================
-router.get("/", async (req, res) => {
-  try {
-    const { opa } = req.query;
-    if (!opa) return res.status(400).json({ ok: false, error: "Missing ?opa=OPA_NUMBER" });
-    if (!/^\d{6,12}$/.test(String(opa))) {
-      return res.status(400).json({ ok: false, error: "Invalid OPA format" });
-    }
-
-    const result = await lookupByOpa(opa);
-    if (!result) {
-      return res.status(404).json({
-        ok: false,
-        code: "OPA_NOT_FOUND",
-        message: "OPA not found",
-        opa: String(opa),
-      });
-    }
-
-    return res.json({ ok: true, mode: "opa", ...result });
-  } catch (e) {
-    console.error("[OPA/DETAIL] error:", e);
-    return res.status(500).json({ ok: false, error: e.message });
-  }
-});
-
-export default router;
 // =========================
 // DEBUG (TEMP) — prove suggest queries and counts
 // GET /api/opa/__debug_suggest?query=526%20MARK
@@ -752,9 +495,14 @@ router.get("/__debug_suggest", async (req, res) => {
       LIMIT 25
     `;
 
-    const needle = housePrefixSql && streetPrefixSql
-      ? sanitizeSql([housePrefixSql, streetDirSql || null, streetPrefixSql].filter(Boolean).join(" "))
-      : null;
+    const needle =
+      housePrefixSql && streetPrefixSql
+        ? sanitizeSql(
+            [housePrefixSql, streetDirSql || null, streetPrefixSql]
+              .filter(Boolean)
+              .join(" ")
+          )
+        : null;
 
     const qPublic = needle
       ? `
@@ -781,11 +529,254 @@ router.get("/__debug_suggest", async (req, res) => {
       ok: true,
       buildStamp: BUILD_STAMP,
       parsed: { housePrefix, streetDir, streetPrefix, zip },
-      sql: { qLookup, qPublic },
       counts: { lookup: rowsLookup.length, public: rowsPublic.length },
       sample: { lookup: rowsLookup.slice(0, 5), public: rowsPublic.slice(0, 5) },
+      sql: { qLookup, qPublic },
     });
   } catch (e) {
     return res.status(500).json({ ok: false, error: e.message, buildStamp: BUILD_STAMP });
   }
 });
+
+// =========================
+// SUGGEST
+// =========================
+router.get("/suggest", async (req, res) => {
+  try {
+    const { query, limit = "10" } = req.query;
+
+    if (!query || !said(query)) {
+      return res.status(400).json({ ok: false, error: "Missing ?query" });
+    }
+
+    const lim = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 25);
+    const suggestions = await fetchSuggestionsFromLookup(query, lim);
+
+    return res.json({
+      ok: true,
+      query: String(query),
+      count: suggestions.length,
+      suggestions,
+    });
+  } catch (e) {
+    console.error("[OPA/SUGGEST] error:", e);
+    return res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// =========================
+// SEARCH
+// =========================
+router.get("/search", async (req, res) => {
+  try {
+    const { opa, address, limit = "1" } = req.query;
+
+    // ---- OPA mode
+    if (opa && said(opa)) {
+      if (!/^\d{6,12}$/.test(String(opa))) {
+        return res.status(400).json({ ok: false, error: "Invalid OPA format" });
+      }
+      const result = await lookupByOpa(opa);
+      if (!result) {
+        return res.status(404).json({
+          ok: false,
+          code: "OPA_NOT_FOUND",
+          message: "OPA not found",
+          opa: String(opa),
+        });
+      }
+      return res.json({ ok: true, mode: "opa", result });
+    }
+
+    // ---- Address mode
+    if (!address || !said(address)) {
+      return res.status(400).json({
+        ok: false,
+        error: "Missing ?address (or provide ?opa=#########)",
+      });
+    }
+
+    const lim = Math.min(Math.max(parseInt(limit, 10) || 1, 1), 25);
+
+    const addrNorm = normalizeAddressForMatch(address);
+    const addrSansCity = stripCityStateZip(addrNorm);
+    const zip = extractZip(addrSansCity);
+    const addrCore = removeZip(addrSansCity, zip);
+
+    const parsed = parseAddressParts(addrCore);
+    const hasHouse = Number.isFinite(parsed.houseNumber) && parsed.houseNumber > 0;
+    const hasStreet = said(parsed.streetName);
+
+    // -------------------------
+    // 1) STRICT exact match (LOOKUP)
+    // -------------------------
+    if (hasHouse && hasStreet) {
+      const streetNameSql = sanitizeSql(parsed.streetName);
+      const streetDirSql = parsed.streetDirection ? sanitizeSql(parsed.streetDirection) : null;
+      const streetDesSql = parsed.streetDesignation ? sanitizeSql(parsed.streetDesignation) : null;
+
+      const addrSql = buildAddrSql();
+
+      const exactLookupQ = `
+        SELECT
+          ${COL_OPA} AS opa_number,
+          ${addrSql} AS address_out,
+          ${COL_OWNER1} AS owner_1,
+          COALESCE(${COL_OWNER2}, '') AS owner_2,
+          CAST(COALESCE(NULLIF(${COL_MARKET}, ''), '0') AS BIGINT) AS market_value,
+          CAST(COALESCE(NULLIF(${COL_SPRICE}, ''), '0') AS BIGINT) AS sale_price,
+          COALESCE(
+            DATE_FORMAT(
+              TRY(FROM_ISO8601_TIMESTAMP(REGEXP_REPLACE(NULLIF(${COL_SDATE}, ''), ' ', 'T'))),
+              '%Y-%m-%d'
+            ),
+            SUBSTR(${COL_SDATE}, 1, 10)
+          ) AS sale_date
+        FROM ${DATABASE}.${TABLE_LOOKUP}
+        WHERE
+          TRY_CAST(${COL_HNO} AS INTEGER) = ${parsed.houseNumber}
+          AND UPPER(${COL_SNAME}) = UPPER('${streetNameSql}')
+          ${streetDirSql ? `AND UPPER(COALESCE(${COL_SDIR}, '')) = UPPER('${streetDirSql}')` : ``}
+          ${
+            streetDesSql
+              ? `AND (
+                   UPPER(COALESCE(${COL_SDES}, '')) = UPPER('${streetDesSql}')
+                   OR UPPER(COALESCE(${COL_SUFFIX}, '')) = UPPER('${streetDesSql}')
+                 )`
+              : ``
+          }
+          ${zip ? `AND ${COL_ZIP} = '${sanitizeSql(zip)}'` : ``}
+        LIMIT 1
+      `;
+
+      const rows = await runAthena(exactLookupQ);
+      if (!rows.length) return await addressNotFound(res, address);
+
+      const r = rows[0];
+      const ownerCombined = [r.owner_1, r.owner_2].filter(Boolean).join(" & ") || null;
+      const zoning = await fetchZoningFromPublicByOpa(String(r.opa_number).trim());
+
+      return res.json({
+        ok: true,
+        mode: "address",
+        result: {
+          opa: r.opa_number,
+          address: normalizeAddressOut(r.address_out) || null,
+          owner: ownerCombined,
+          market_value: toNumber(r.market_value),
+          sale_price: toNumber(r.sale_price),
+          sale_date: r.sale_date || null,
+          zoning: zoning || null,
+          tax: { lookup_url: "https://tax-services.phila.gov/_/" },
+        },
+      });
+    }
+
+    // -------------------------
+    // 2) Fuzzy match ONLY if no house number (PUBLIC)
+    // -------------------------
+    const addrNeedle = sanitizeSql(addrCore);
+
+    const fuzzyQ = `
+      WITH base AS (
+        SELECT
+          ${COL_OPA}      AS opa_number,
+          ${COL_LOC}      AS location,
+          ${COL_OWNER1}   AS owner_1,
+          COALESCE(${COL_OWNER2}, '') AS owner_2,
+          CAST(COALESCE(NULLIF(${COL_MARKET}, ''), '0') AS BIGINT) AS market_value,
+          CAST(COALESCE(NULLIF(${COL_SPRICE}, ''), '0') AS BIGINT) AS sale_price,
+          COALESCE(
+            DATE_FORMAT(
+              TRY(FROM_ISO8601_TIMESTAMP(REGEXP_REPLACE(NULLIF(${COL_SDATE}, ''), ' ', 'T'))),
+              '%Y-%m-%d'
+            ),
+            SUBSTR(${COL_SDATE}, 1, 10)
+          ) AS sale_date,
+          ${COL_ZIP} AS zip_code,
+          NULLIF(TRIM(${COL_ZONING}), '') AS zoning
+        FROM ${DATABASE}.${TABLE_PUBLIC}
+      )
+      SELECT
+        opa_number, location, owner_1, owner_2, market_value, sale_price, sale_date, zoning
+      FROM base
+      WHERE
+        strpos(UPPER(COALESCE(location, '')), UPPER('${addrNeedle}')) > 0
+        ${zip ? `AND zip_code = '${sanitizeSql(zip)}'` : ``}
+      ORDER BY location
+      LIMIT ${lim}
+    `;
+
+    const rows = await runAthena(fuzzyQ);
+    if (!rows.length) return await addressNotFound(res, address);
+
+    if (lim === 1) {
+      const r = rows[0];
+      const ownerCombined = [r.owner_1, r.owner_2].filter(Boolean).join(" & ");
+      return res.json({
+        ok: true,
+        mode: "address",
+        result: {
+          opa: r.opa_number,
+          address: normalizeAddressOut(r.location) || null,
+          owner: ownerCombined || null,
+          market_value: toNumber(r.market_value),
+          sale_price: toNumber(r.sale_price),
+          sale_date: r.sale_date || null,
+          zoning: r.zoning ? String(r.zoning).trim() : null,
+          tax: { lookup_url: "https://tax-services.phila.gov/_/" },
+        },
+      });
+    }
+
+    const results = rows.map((r) => {
+      const ownerCombined = [r.owner_1, r.owner_2].filter(Boolean).join(" & ");
+      return {
+        opa: r.opa_number,
+        address: normalizeAddressOut(r.location) || null,
+        owner: ownerCombined || null,
+        market_value: toNumber(r.market_value),
+        sale_price: toNumber(r.sale_price),
+        sale_date: r.sale_date || null,
+        zoning: r.zoning ? String(r.zoning).trim() : null,
+        tax: { lookup_url: "https://tax-services.phila.gov/_/" },
+      };
+    });
+
+    return res.json({ ok: true, mode: "address", query: address, count: results.length, results });
+  } catch (e) {
+    console.error("[OPA/SEARCH] error:", e);
+    return res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// =========================
+// Detail by OPA (kept)
+// GET /api/opa?opa=#########
+// =========================
+router.get("/", async (req, res) => {
+  try {
+    const { opa } = req.query;
+    if (!opa) return res.status(400).json({ ok: false, error: "Missing ?opa=OPA_NUMBER" });
+    if (!/^\d{6,12}$/.test(String(opa))) {
+      return res.status(400).json({ ok: false, error: "Invalid OPA format" });
+    }
+
+    const result = await lookupByOpa(opa);
+    if (!result) {
+      return res.status(404).json({
+        ok: false,
+        code: "OPA_NOT_FOUND",
+        message: "OPA not found",
+        opa: String(opa),
+      });
+    }
+
+    return res.json({ ok: true, mode: "opa", ...result });
+  } catch (e) {
+    console.error("[OPA/DETAIL] error:", e);
+    return res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+export default router;
