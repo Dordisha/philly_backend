@@ -1,12 +1,4 @@
 // ✅ FILE: philly_backend/src/routes/opa.js
-// LOOKUP2-SUGGEST-FIX (full file)
-// Fixes:
-// 1) /suggest house+street queries (e.g., "526 MARK", "1539 S LAM", "1803 S BRO")
-//    by using a STREET_COMBO (street_name + street_designation + suffix) and a 2-pass direction strategy:
-//    - Pass A: require direction if user typed one
-//    - Pass B: if 0 rows, retry without direction (autocomplete should be tolerant)
-// 2) STRICT /search designation matching: street_designation OR suffix can satisfy "ST/AVE/...".
-
 import { Router } from "express";
 import { fileURLToPath } from "url";
 import { runAthena } from "../lib/athenaRun.js";
@@ -20,10 +12,10 @@ console.log(`📁 opa.js loaded from: file://${__filename}`);
 // =========================
 const DATABASE = process.env.ATHENA_DATABASE || "philly_data";
 
-// Optimized table (NO location column) — best quality for structured search
+// Optimized table (structured)
 const TABLE_LOOKUP = process.env.ATHENA_TABLE || "opa_properties_lookup2";
 
-// Raw/public table (HAS location column) — only needed for zoning + fuzzy
+// Raw/public table (string location)
 const TABLE_PUBLIC = process.env.OPA_PUBLIC_TABLE || "opa_properties_public";
 
 // Column mappings
@@ -32,9 +24,10 @@ const COL_OWNER1 = process.env.OPA_COL_OWNER || "owner_1";
 const COL_MARKET = process.env.OPA_COL_MARKET_VALUE || "market_value";
 const COL_SPRICE = process.env.OPA_COL_SALE_PRICE || "sale_price";
 const COL_SDATE = process.env.OPA_COL_SALE_DATE || "sale_date";
+
 const COL_OWNER2 = "owner_2";
 
-// Address part columns (exist in lookup2 + public)
+// Address part columns
 const COL_HNO = "house_number";
 const COL_SDIR = "street_direction";
 const COL_SNAME = "street_name";
@@ -150,18 +143,11 @@ function parseAddressParts(addrCoreUpper) {
   }
 
   let rest = m[2].trim();
-
-  // Drop apt/unit tail
   rest = rest.replace(/\b(APT|APARTMENT|UNIT|STE|SUITE|#)\b.*$/i, "").trim();
 
   const tokens = rest.split(/\s+/).filter(Boolean).map((t) => t.toUpperCase());
   if (!tokens.length) {
-    return {
-      houseNumber,
-      streetDirection: null,
-      streetName: null,
-      streetDesignation: null,
-    };
+    return { houseNumber, streetDirection: null, streetName: null, streetDesignation: null };
   }
 
   let streetDirection = null;
@@ -175,11 +161,10 @@ function parseAddressParts(addrCoreUpper) {
   }
 
   const streetName = tokens.length ? tokens.join(" ") : null;
-
   return { houseNumber, streetDirection, streetName, streetDesignation };
 }
 
-// ✅ Suggest parser: supports "1539 S Lam", "526 mar", "1803 S BRO"
+// Suggest parser: supports "1539 S Lam", "526 mar", "1803 S BRO"
 function parseSuggestParts(coreUpper) {
   const q = coreUpper.trim();
   const m = q.match(/^(\d+)\s*(.*)$/);
@@ -197,7 +182,7 @@ function parseSuggestParts(coreUpper) {
     streetDir = tokens.shift();
   }
 
-  // Remove trailing designator for prefix searching (user typing "ST" shouldn't be required)
+  // remove trailing designation for prefix searches
   if (tokens.length && DESIG.has(tokens[tokens.length - 1])) {
     tokens.pop();
   }
@@ -303,7 +288,10 @@ async function lookupByOpa(opa) {
 }
 
 // =========================
-// ✅ Suggestions from LOOKUP table (not PUBLIC)
+// ✅ SUGGESTIONS
+// Strategy:
+// - Try LOOKUP2 (structured) first
+// - If house+street returns 0, FALLBACK to PUBLIC.location prefix match
 // =========================
 async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
   try {
@@ -314,7 +302,8 @@ async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
 
     const { housePrefix, streetDir, streetPrefix } = parseSuggestParts(core);
 
-    // If no house prefix, require >=3 chars to avoid huge scans
+    const limitSql = Math.min(Math.max(parseInt(lim, 10) || 10, 1), 25);
+
     if (!housePrefix && (!streetPrefix || streetPrefix.length < 3)) return [];
 
     const housePrefixSql = housePrefix ? sanitizeSql(housePrefix) : null;
@@ -323,7 +312,7 @@ async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
 
     const addrSql = buildAddrSql();
 
-    // street_combo = "LAMBERT ST" / "MARKET ST" etc (covers designation/suffix inconsistencies)
+    // Lookup2 street combo (covers suffix/designation inconsistencies)
     const streetComboSql = `
       UPPER(TRIM(CONCAT_WS(
         ' ',
@@ -333,63 +322,98 @@ async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
       )))
     `;
 
-    // Base where clause (house prefix optional, street prefix optional, zip optional)
-    const whereBase = `
+    // -------------------------
+    // 1) LOOKUP2 attempt
+    // -------------------------
+    const whereLookup = `
       1=1
       ${zip ? `AND ${COL_ZIP} = '${sanitizeSql(zip)}'` : ``}
-      ${
-        housePrefixSql
-          ? `AND starts_with(CAST(${COL_HNO} AS VARCHAR), '${housePrefixSql}')`
-          : ``
-      }
-      ${
-        streetPrefixSql
-          ? `AND ${streetComboSql} LIKE UPPER('${streetPrefixSql}%')`
-          : ``
-      }
+      ${housePrefixSql ? `AND starts_with(CAST(${COL_HNO} AS VARCHAR), '${housePrefixSql}')` : ``}
+      ${streetPrefixSql ? `AND ${streetComboSql} LIKE UPPER('${streetPrefixSql}%')` : ``}
     `;
 
-    const limitSql = Math.min(Math.max(parseInt(lim, 10) || 10, 1), 25);
+    // Direction is OPTIONAL for autocomplete; prefer it but don’t require it.
+    const qLookupPreferredDir =
+      streetDirSql && housePrefixSql && streetPrefixSql
+        ? `
+          SELECT
+            ${COL_OPA} AS opa_number,
+            ${addrSql} AS address_out,
+            ${COL_ZIP} AS zip_code
+          FROM ${DATABASE}.${TABLE_LOOKUP}
+          WHERE ${whereLookup}
+            AND UPPER(COALESCE(${COL_SDIR}, '')) = UPPER('${streetDirSql}')
+          ORDER BY address_out
+          LIMIT ${limitSql}
+        `
+        : null;
 
-    // Pass A: if direction provided, require it (more precise)
-    const qStrictDir = streetDirSql
-      ? `
-        SELECT
-          ${COL_OPA} AS opa_number,
-          ${addrSql} AS address_out,
-          ${COL_ZIP} AS zip_code
-        FROM ${DATABASE}.${TABLE_LOOKUP}
-        WHERE ${whereBase}
-          AND UPPER(COALESCE(${COL_SDIR}, '')) = UPPER('${streetDirSql}')
-        ORDER BY address_out
-        LIMIT ${limitSql}
-      `
-      : null;
-
-    // Pass B: direction-optional (autocomplete should be tolerant)
-    const qNoDir = `
+    const qLookupNoDir = `
       SELECT
         ${COL_OPA} AS opa_number,
         ${addrSql} AS address_out,
         ${COL_ZIP} AS zip_code
       FROM ${DATABASE}.${TABLE_LOOKUP}
-      WHERE ${whereBase}
+      WHERE ${whereLookup}
       ORDER BY address_out
       LIMIT ${limitSql}
     `;
 
     let rows = [];
-
-    if (qStrictDir) {
-      rows = await runAthena(qStrictDir);
-      if (!rows.length) {
-        rows = await runAthena(qNoDir);
-      }
-    } else {
-      rows = await runAthena(qNoDir);
+    if (qLookupPreferredDir) {
+      rows = await runAthena(qLookupPreferredDir);
+    }
+    if (!rows.length) {
+      rows = await runAthena(qLookupNoDir);
     }
 
-    return (rows || [])
+    let suggestions =
+      (rows || [])
+        .map((r) => ({
+          address: normalizeAddressOut(r.address_out) || null,
+          opa: r.opa_number ? String(r.opa_number).trim() : null,
+          zip: r.zip_code ? String(r.zip_code).trim() : null,
+        }))
+        .filter((s) => s.address && s.opa) || [];
+
+    if (suggestions.length) return suggestions;
+
+    // -------------------------
+    // 2) FALLBACK: PUBLIC.location
+    // Only do fallback when we have house+street (your failing case).
+    // This matches how real autocomplete tools work.
+    // -------------------------
+    if (!housePrefixSql || !streetPrefixSql) return [];
+
+    // Build a simple "needle" like: "526 MARKET" or "1539 S LAM"
+    const needle = sanitizeSql(
+      [housePrefixSql, streetDirSql || null, streetPrefixSql].filter(Boolean).join(" ")
+    );
+
+    // Prefer starts_with(location, needle) for speed.
+    // If direction is supplied and the dataset differs, the `OR` catches it.
+    const qPublic = `
+      SELECT
+        ${COL_OPA} AS opa_number,
+        ${COL_LOC} AS address_out,
+        ${COL_ZIP} AS zip_code
+      FROM ${DATABASE}.${TABLE_PUBLIC}
+      WHERE
+        (
+          starts_with(UPPER(COALESCE(${COL_LOC}, '')), UPPER('${needle}'))
+          OR (
+            starts_with(UPPER(COALESCE(${COL_LOC}, '')), UPPER('${housePrefixSql}'))
+            AND strpos(UPPER(COALESCE(${COL_LOC}, '')), UPPER('${streetPrefixSql}')) > 0
+          )
+        )
+        ${zip ? `AND ${COL_ZIP} = '${sanitizeSql(zip)}'` : ``}
+      ORDER BY address_out
+      LIMIT ${limitSql}
+    `;
+
+    const pubRows = await runAthena(qPublic);
+
+    return (pubRows || [])
       .map((r) => ({
         address: normalizeAddressOut(r.address_out) || null,
         opa: r.opa_number ? String(r.opa_number).trim() : null,
@@ -397,7 +421,7 @@ async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
       }))
       .filter((s) => s.address && s.opa);
   } catch (e) {
-    console.error("[OPA/SUGGEST_LOOKUP] error:", e);
+    console.error("[OPA/SUGGEST] error:", e);
     return [];
   }
 }
