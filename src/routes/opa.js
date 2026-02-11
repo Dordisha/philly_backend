@@ -313,15 +313,10 @@ async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
       )))
     `;
 
-    // --- House number behavior:
-    // if 3+ digits => exact or range-containing (then block fallback)
-    // if 1-2 digits => prefix (fast)
     const houseDigits = housePrefixSql ? String(housePrefixSql).length : 0;
     const houseInt = housePrefixSql ? parseInt(String(housePrefixSql), 10) : null;
     const isExactHouseMode = houseDigits >= 3 && Number.isFinite(houseInt);
 
-    // Build Athena SQL: compute end of a range like "524-28" => 528
-    // Works for patterns: 1001-19 => 1019, 524-28 => 528
     const rangeEndFrom = (tokenExpr) => `
       CASE
         WHEN length(split_part(${tokenExpr}, '-', 2)) < length(split_part(${tokenExpr}, '-', 1))
@@ -342,7 +337,6 @@ async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
 
     const hnoStr = `TRIM(CAST(${COL_HNO} AS VARCHAR))`;
 
-    // EXACT+RANGE match for 3+ digits, otherwise PREFIX
     const houseMatchLookup = isExactHouseMode
       ? `
         (
@@ -359,9 +353,6 @@ async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
         ? `starts_with(${hnoStr}, '${housePrefixSql}')`
         : `1=1`;
 
-    // -------------------------
-    // 1) LOOKUP2: exact/range (or prefix if 1–2 digits)
-    // -------------------------
     const whereLookupBase = `
       1=1
       ${zip ? `AND ${COL_ZIP} = '${sanitizeSql(zip)}'` : ``}
@@ -404,9 +395,6 @@ async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
 
     if (suggestions.length) return suggestions;
 
-    // -------------------------
-    // 2) LOOKUP2 BLOCK FALLBACK (ONLY for 3+ digits)
-    // -------------------------
     if (!isExactHouseMode || !streetPrefixSql) return [];
 
     const blockStart = Math.floor(houseInt / 100) * 100;
@@ -607,8 +595,7 @@ router.get("/search", async (req, res) => {
 
     // -------------------------
     // 1) STRICT exact match (LOOKUP)
-    // ✅ FIX: ignore designation/suffix completely.
-    // Match on house number (including ranges) + direction (if provided) + street_name (+ zip if provided).
+    // ✅ FIX: house (incl ranges) + dir (if present) + street_name "starts with" parsed name.
     // -------------------------
     if (hasHouse && hasStreet) {
       const streetNameSql = sanitizeSql(parsed.streetName);
@@ -618,7 +605,6 @@ router.get("/search", async (req, res) => {
 
       const hnoStr = `TRIM(CAST(${COL_HNO} AS VARCHAR))`;
 
-      // end of "524-28" => 528, "1001-19" => 1019
       const rangeEndFrom = (tokenExpr) => `
         CASE
           WHEN length(split_part(${tokenExpr}, '-', 2)) < length(split_part(${tokenExpr}, '-', 1))
@@ -649,6 +635,14 @@ router.get("/search", async (req, res) => {
         )
       `;
 
+      // 🔥 this is the key: match street_name by anchored prefix, not equality
+      const streetNameMatch = `
+        regexp_like(
+          UPPER(COALESCE(${COL_SNAME}, '')),
+          '^${streetNameSql}(\\\\b|\\\\s)'
+        )
+      `;
+
       const exactLookupQ = `
         SELECT
           ${COL_OPA} AS opa_number,
@@ -667,7 +661,7 @@ router.get("/search", async (req, res) => {
         FROM ${DATABASE}.${TABLE_LOOKUP}
         WHERE
           ${houseMatchLookup}
-          AND UPPER(COALESCE(${COL_SNAME}, '')) = UPPER('${streetNameSql}')
+          AND ${streetNameMatch}
           ${streetDirSql ? `AND UPPER(COALESCE(${COL_SDIR}, '')) = UPPER('${streetDirSql}')` : ``}
           ${zip ? `AND ${COL_ZIP} = '${sanitizeSql(zip)}'` : ``}
         LIMIT 1
