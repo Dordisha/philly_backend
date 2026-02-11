@@ -1,11 +1,10 @@
 // ✅ FILE: philly_backend/src/routes/opa.js
-// FINAL: Smart autocomplete (exact + range-aware) + strict address search stays on LOOKUP2
+// FULL FILE — SMART suggest (exact + range-aware + block fallback)
+// - Fixes: 524 MARK no longer returns 5240... noise (when in exact mode)
+// - Fixes: 526 MARK returns same-block suggestions even if 526 parcel doesn't exist
+// - Keeps: strict address search on LOOKUP2 + fuzzy only when no house number
 //
-// Autocomplete behavior:
-// - If user types 3+ digits for house number (e.g., 526): match EXACT house # OR range containing it (e.g., 524-28)
-// - If user types 1–2 digits (e.g., 52): prefix match (fast) (no range math)
-// - Street is prefix-based; direction is preferred but optional
-// - PUBLIC fallback uses normalized location + token-boundary street matching (prevents BRO matching MERIBROOK)
+// NOTE: Debug routes are included and are defined BEFORE export default.
 
 import { Router } from "express";
 import { fileURLToPath } from "url";
@@ -285,7 +284,7 @@ async function lookupByOpa(opa) {
 }
 
 // =========================
-// ✅ SUGGESTIONS — SMART (exact + range-aware)
+// ✅ SUGGESTIONS — SMART (exact + range-aware + block fallback)
 // =========================
 async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
   try {
@@ -315,7 +314,7 @@ async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
     `;
 
     // --- House number behavior:
-    // if 3+ digits => exact or range-containing
+    // if 3+ digits => exact or range-containing (then block fallback)
     // if 1-2 digits => prefix (fast)
     const houseDigits = housePrefixSql ? String(housePrefixSql).length : 0;
     const houseInt = housePrefixSql ? parseInt(String(housePrefixSql), 10) : null;
@@ -341,8 +340,9 @@ async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
       END
     `;
 
-    // LOOKUP2 house expr
     const hnoStr = `TRIM(CAST(${COL_HNO} AS VARCHAR))`;
+
+    // EXACT+RANGE match for 3+ digits, otherwise PREFIX
     const houseMatchLookup = isExactHouseMode
       ? `
         (
@@ -360,9 +360,9 @@ async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
         : `1=1`;
 
     // -------------------------
-    // 1) LOOKUP2 attempt
+    // 1) LOOKUP2: exact/range (or prefix if 1–2 digits)
     // -------------------------
-    const whereLookup = `
+    const whereLookupBase = `
       1=1
       ${zip ? `AND ${COL_ZIP} = '${sanitizeSql(zip)}'` : ``}
       ${housePrefixSql ? `AND ${houseMatchLookup}` : ``}
@@ -374,7 +374,7 @@ async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
         ? `
           SELECT ${COL_OPA} AS opa_number, ${addrSql} AS address_out, ${COL_ZIP} AS zip_code
           FROM ${DATABASE}.${TABLE_LOOKUP}
-          WHERE ${whereLookup}
+          WHERE ${whereLookupBase}
             AND UPPER(COALESCE(${COL_SDIR}, '')) = UPPER('${streetDirSql}')
           ORDER BY address_out
           LIMIT ${limitSql}
@@ -384,7 +384,7 @@ async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
     const qLookupNoDir = `
       SELECT ${COL_OPA} AS opa_number, ${addrSql} AS address_out, ${COL_ZIP} AS zip_code
       FROM ${DATABASE}.${TABLE_LOOKUP}
-      WHERE ${whereLookup}
+      WHERE ${whereLookupBase}
       ORDER BY address_out
       LIMIT ${limitSql}
     `;
@@ -393,7 +393,7 @@ async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
     if (qLookupPreferredDir) rows = await runAthena(qLookupPreferredDir);
     if (!rows.length) rows = await runAthena(qLookupNoDir);
 
-    const suggestionsFromLookup =
+    let suggestions =
       (rows || [])
         .map((r) => ({
           address: normalizeAddressOut(r.address_out) || null,
@@ -402,54 +402,75 @@ async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
         }))
         .filter((s) => s.address && s.opa) || [];
 
-    if (suggestionsFromLookup.length) return suggestionsFromLookup;
+    if (suggestions.length) return suggestions;
 
     // -------------------------
-    // 2) PUBLIC fallback (normalized location + exact/range house logic)
+    // 2) LOOKUP2 BLOCK FALLBACK (ONLY for 3+ digits)
+    // If 526 MARK doesn't exist, return 500–599 MARKET results.
+    // Also includes ranges that overlap the block.
     // -------------------------
-    if (!housePrefixSql || !streetPrefixSql) return [];
-    if (!isExactHouseMode) return []; // only do fallback for "real" typed house #s
+    if (!isExactHouseMode || !streetPrefixSql) return [];
 
-    const locExpr = `
-      REGEXP_REPLACE(UPPER(TRIM(COALESCE(${COL_LOC}, ''))), '\\\\s+', ' ')
-    `;
-    const firstToken = `split_part(${locExpr}, ' ', 1)`;
+    const blockStart = Math.floor(houseInt / 100) * 100;
+    const blockEnd = blockStart + 99;
 
-    const rangeContainsHousePublic = `
+    const rangeOverlapsBlock = `
       (
-        regexp_like(${firstToken}, '^\\d+-\\d+$')
-        AND ${houseInt} BETWEEN
-          TRY_CAST(split_part(${firstToken}, '-', 1) AS INTEGER)
-          AND ${rangeEndFrom(firstToken)}
+        regexp_like(${hnoStr}, '^\\d+-\\d+$')
+        AND (
+          TRY_CAST(split_part(${hnoStr}, '-', 1) AS INTEGER) <= ${blockEnd}
+          AND ${rangeEndFrom(hnoStr)} >= ${blockStart}
+        )
       )
     `;
 
-    // Street match at token boundary, but allows prefix: MARK -> MARKET, BRO -> BROAD
-    const streetTokenRe = sanitizeSql(`(^|\\s)${streetPrefixSql}`);
+    const qBlockPreferredDir = streetDirSql
+      ? `
+        SELECT ${COL_OPA} AS opa_number, ${addrSql} AS address_out, ${COL_ZIP} AS zip_code
+        FROM ${DATABASE}.${TABLE_LOOKUP}
+        WHERE
+          1=1
+          ${zip ? `AND ${COL_ZIP} = '${sanitizeSql(zip)}'` : ``}
+          AND ${streetComboSql} LIKE UPPER('${streetPrefixSql}%')
+          AND UPPER(COALESCE(${COL_SDIR}, '')) = UPPER('${streetDirSql}')
+          AND (
+            (regexp_like(${hnoStr}, '^\\d+$') AND TRY_CAST(${hnoStr} AS INTEGER) BETWEEN ${blockStart} AND ${blockEnd})
+            OR ${rangeOverlapsBlock}
+          )
+        ORDER BY address_out
+        LIMIT ${limitSql}
+      `
+      : null;
 
-    const qPublic = `
-      SELECT ${COL_OPA} AS opa_number, ${COL_LOC} AS address_out, ${COL_ZIP} AS zip_code
-      FROM ${DATABASE}.${TABLE_PUBLIC}
+    const qBlockNoDir = `
+      SELECT ${COL_OPA} AS opa_number, ${addrSql} AS address_out, ${COL_ZIP} AS zip_code
+      FROM ${DATABASE}.${TABLE_LOOKUP}
       WHERE
-        (
-          (${firstToken} = '${housePrefixSql}' OR ${rangeContainsHousePublic})
-          AND regexp_like(${locExpr}, '${streetTokenRe}')
-          ${streetDirSql ? `AND regexp_like(${locExpr}, '(^|\\\\s)${sanitizeSql(streetDirSql)}\\\\s')` : ``}
-        )
+        1=1
         ${zip ? `AND ${COL_ZIP} = '${sanitizeSql(zip)}'` : ``}
+        AND ${streetComboSql} LIKE UPPER('${streetPrefixSql}%')
+        AND (
+          (regexp_like(${hnoStr}, '^\\d+$') AND TRY_CAST(${hnoStr} AS INTEGER) BETWEEN ${blockStart} AND ${blockEnd})
+          OR ${rangeOverlapsBlock}
+        )
       ORDER BY address_out
       LIMIT ${limitSql}
     `;
 
-    const pubRows = await runAthena(qPublic);
+    let blockRows = [];
+    if (qBlockPreferredDir) blockRows = await runAthena(qBlockPreferredDir);
+    if (!blockRows.length) blockRows = await runAthena(qBlockNoDir);
 
-    return (pubRows || [])
-      .map((r) => ({
-        address: normalizeAddressOut(r.address_out) || null,
-        opa: r.opa_number ? String(r.opa_number).trim() : null,
-        zip: r.zip_code ? String(r.zip_code).trim() : null,
-      }))
-      .filter((s) => s.address && s.opa);
+    suggestions =
+      (blockRows || [])
+        .map((r) => ({
+          address: normalizeAddressOut(r.address_out) || null,
+          opa: r.opa_number ? String(r.opa_number).trim() : null,
+          zip: r.zip_code ? String(r.zip_code).trim() : null,
+        }))
+        .filter((s) => s.address && s.opa) || [];
+
+    return suggestions;
   } catch (e) {
     console.error("[OPA/SUGGEST] error:", e);
     return [];
@@ -481,7 +502,7 @@ router.get("/_ping", (req, res) =>
 );
 
 // =========================
-// DEBUG (TEMP) — prove file + build
+// DEBUG (TEMP) — show file + build
 // GET /api/opa/__whoami
 // =========================
 router.get("/__whoami", (req, res) => {
@@ -495,7 +516,7 @@ router.get("/__whoami", (req, res) => {
 });
 
 // =========================
-// DEBUG (TEMP) — show counts only (uses REAL suggest function)
+// DEBUG (TEMP) — show suggest output quickly
 // GET /api/opa/__debug_suggest?query=526%20MARK
 // =========================
 router.get("/__debug_suggest", async (req, res) => {
@@ -509,7 +530,7 @@ router.get("/__debug_suggest", async (req, res) => {
       buildStamp: BUILD_STAMP,
       query,
       count: suggestions.length,
-      suggestions: suggestions.slice(0, 10),
+      suggestions: suggestions.slice(0, 25),
     });
   } catch (e) {
     return res.status(500).json({ ok: false, error: e.message, buildStamp: BUILD_STAMP });
