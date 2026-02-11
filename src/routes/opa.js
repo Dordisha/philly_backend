@@ -313,10 +313,15 @@ async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
       )))
     `;
 
+    // --- House number behavior:
+    // if 3+ digits => exact or range-containing (then block fallback)
+    // if 1-2 digits => prefix (fast)
     const houseDigits = housePrefixSql ? String(housePrefixSql).length : 0;
     const houseInt = housePrefixSql ? parseInt(String(housePrefixSql), 10) : null;
     const isExactHouseMode = houseDigits >= 3 && Number.isFinite(houseInt);
 
+    // Build Athena SQL: compute end of a range like "524-28" => 528
+    // Works for patterns: 1001-19 => 1019, 524-28 => 528
     const rangeEndFrom = (tokenExpr) => `
       CASE
         WHEN length(split_part(${tokenExpr}, '-', 2)) < length(split_part(${tokenExpr}, '-', 1))
@@ -337,6 +342,7 @@ async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
 
     const hnoStr = `TRIM(CAST(${COL_HNO} AS VARCHAR))`;
 
+    // EXACT+RANGE match for 3+ digits, otherwise PREFIX
     const houseMatchLookup = isExactHouseMode
       ? `
         (
@@ -353,6 +359,9 @@ async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
         ? `starts_with(${hnoStr}, '${housePrefixSql}')`
         : `1=1`;
 
+    // -------------------------
+    // 1) LOOKUP2: exact/range (or prefix if 1–2 digits)
+    // -------------------------
     const whereLookupBase = `
       1=1
       ${zip ? `AND ${COL_ZIP} = '${sanitizeSql(zip)}'` : ``}
@@ -395,6 +404,9 @@ async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
 
     if (suggestions.length) return suggestions;
 
+    // -------------------------
+    // 2) LOOKUP2 BLOCK FALLBACK (ONLY for 3+ digits)
+    // -------------------------
     if (!isExactHouseMode || !streetPrefixSql) return [];
 
     const blockStart = Math.floor(houseInt / 100) * 100;
@@ -595,99 +607,17 @@ router.get("/search", async (req, res) => {
 
     // -------------------------
     // 1) STRICT exact match (LOOKUP)
-    // ✅ FIX: house (incl ranges) + dir (if present) + street_name "starts with" parsed name.
+    // ✅ FIX: if user typed the address and strict matching is brittle, resolve by LOOKUP2 suggestions first.
+    // This removes the "Not Found but suggestions exist" UX.
     // -------------------------
     if (hasHouse && hasStreet) {
-      const streetNameSql = sanitizeSql(parsed.streetName);
-      const streetDirSql = parsed.streetDirection ? sanitizeSql(parsed.streetDirection) : null;
+      const best = await fetchSuggestionsFromLookup(address, 1);
+      if (!best.length || !best[0].opa) return await addressNotFound(res, address);
 
-      const addrSql = buildAddrSql();
+      const result = await lookupByOpa(best[0].opa);
+      if (!result) return await addressNotFound(res, address);
 
-      const hnoStr = `TRIM(CAST(${COL_HNO} AS VARCHAR))`;
-
-      const rangeEndFrom = (tokenExpr) => `
-        CASE
-          WHEN length(split_part(${tokenExpr}, '-', 2)) < length(split_part(${tokenExpr}, '-', 1))
-            THEN
-              (
-                CAST(
-                  floor(
-                    TRY_CAST(split_part(${tokenExpr}, '-', 1) AS DOUBLE)
-                    / pow(10, length(split_part(${tokenExpr}, '-', 2)))
-                  ) AS INTEGER
-                )
-                * CAST(pow(10, length(split_part(${tokenExpr}, '-', 2))) AS INTEGER)
-              )
-              + TRY_CAST(split_part(${tokenExpr}, '-', 2) AS INTEGER)
-          ELSE TRY_CAST(split_part(${tokenExpr}, '-', 2) AS INTEGER)
-        END
-      `;
-
-      const houseMatchLookup = `
-        (
-          (regexp_like(${hnoStr}, '^\\d+$') AND TRY_CAST(${hnoStr} AS INTEGER) = ${parsed.houseNumber})
-          OR (
-            regexp_like(${hnoStr}, '^\\d+-\\d+$')
-            AND ${parsed.houseNumber} BETWEEN
-              TRY_CAST(split_part(${hnoStr}, '-', 1) AS INTEGER)
-              AND ${rangeEndFrom(hnoStr)}
-          )
-        )
-      `;
-
-      // 🔥 this is the key: match street_name by anchored prefix, not equality
-      const streetNameMatch = `
-        regexp_like(
-          UPPER(COALESCE(${COL_SNAME}, '')),
-          '^${streetNameSql}(\\\\b|\\\\s)'
-        )
-      `;
-
-      const exactLookupQ = `
-        SELECT
-          ${COL_OPA} AS opa_number,
-          ${addrSql} AS address_out,
-          ${COL_OWNER1} AS owner_1,
-          COALESCE(${COL_OWNER2}, '') AS owner_2,
-          CAST(COALESCE(NULLIF(${COL_MARKET}, ''), '0') AS BIGINT) AS market_value,
-          CAST(COALESCE(NULLIF(${COL_SPRICE}, ''), '0') AS BIGINT) AS sale_price,
-          COALESCE(
-            DATE_FORMAT(
-              TRY(FROM_ISO8601_TIMESTAMP(REGEXP_REPLACE(NULLIF(${COL_SDATE}, ''), ' ', 'T'))),
-              '%Y-%m-%d'
-            ),
-            SUBSTR(${COL_SDATE}, 1, 10)
-          ) AS sale_date
-        FROM ${DATABASE}.${TABLE_LOOKUP}
-        WHERE
-          ${houseMatchLookup}
-          AND ${streetNameMatch}
-          ${streetDirSql ? `AND UPPER(COALESCE(${COL_SDIR}, '')) = UPPER('${streetDirSql}')` : ``}
-          ${zip ? `AND ${COL_ZIP} = '${sanitizeSql(zip)}'` : ``}
-        LIMIT 1
-      `;
-
-      const rows = await runAthena(exactLookupQ);
-      if (!rows.length) return await addressNotFound(res, address);
-
-      const r = rows[0];
-      const ownerCombined = [r.owner_1, r.owner_2].filter(Boolean).join(" & ") || null;
-      const zoning = await fetchZoningFromPublicByOpa(String(r.opa_number).trim());
-
-      return res.json({
-        ok: true,
-        mode: "address",
-        result: {
-          opa: r.opa_number,
-          address: normalizeAddressOut(r.address_out) || null,
-          owner: ownerCombined,
-          market_value: toNumber(r.market_value),
-          sale_price: toNumber(r.sale_price),
-          sale_date: r.sale_date || null,
-          zoning: zoning || null,
-          tax: { lookup_url: "https://tax-services.phila.gov/_/" },
-        },
-      });
+      return res.json({ ok: true, mode: "address", result });
     }
 
     // -------------------------
