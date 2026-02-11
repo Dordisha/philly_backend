@@ -1,14 +1,8 @@
 // ✅ FILE: philly_backend/src/routes/opa.js
-// LOOKUP2-SUGGEST-FIX — full file (debug routes correctly placed BEFORE export)
-//
-// What this version does:
-// 1) /api/opa/suggest
-//    - tries LOOKUP2 (house prefix + street prefix using street_combo)
-//    - if 0 and user provided house+street -> falls back to PUBLIC.location matching
-// 2) /api/opa/__whoami  (DEBUG) proves which file is loaded + buildStamp
-// 3) /api/opa/__debug_suggest (DEBUG) proves Athena counts + shows sample rows + SQL
-//
-// IMPORTANT: export default router is LAST LINE.
+// LOOKUP2-SUGGEST-FIX — full file with PUBLIC fallback fixed:
+// - Normalizes PUBLIC.location (TRIM + collapse whitespace) so "526 MARK" matches even with weird spacing
+// - Uses token-boundary match for streetPrefix so "BRO" won't match "MERIBROOK"
+// - Keeps __whoami + __debug_suggest routes BEFORE export default router
 
 import { Router } from "express";
 import { fileURLToPath } from "url";
@@ -161,14 +155,10 @@ function parseAddressParts(addrCoreUpper) {
   }
 
   let streetDirection = null;
-  if (tokens.length && DIRS.has(tokens[0])) {
-    streetDirection = tokens.shift();
-  }
+  if (tokens.length && DIRS.has(tokens[0])) streetDirection = tokens.shift();
 
   let streetDesignation = null;
-  if (tokens.length && DESIG.has(tokens[tokens.length - 1])) {
-    streetDesignation = tokens.pop();
-  }
+  if (tokens.length && DESIG.has(tokens[tokens.length - 1])) streetDesignation = tokens.pop();
 
   const streetName = tokens.length ? tokens.join(" ") : null;
   return { houseNumber, streetDirection, streetName, streetDesignation };
@@ -188,14 +178,10 @@ function parseSuggestParts(coreUpper) {
   const tokens = rest.split(/\s+/).filter(Boolean).map((t) => t.toUpperCase());
 
   let streetDir = null;
-  if (tokens.length && DIRS.has(tokens[0])) {
-    streetDir = tokens.shift();
-  }
+  if (tokens.length && DIRS.has(tokens[0])) streetDir = tokens.shift();
 
   // remove trailing designation for prefix searches
-  if (tokens.length && DESIG.has(tokens[tokens.length - 1])) {
-    tokens.pop();
-  }
+  if (tokens.length && DESIG.has(tokens[tokens.length - 1])) tokens.pop();
 
   const streetPrefix = tokens.join(" ").trim();
   return { housePrefix, streetDir, streetPrefix };
@@ -298,7 +284,7 @@ async function lookupByOpa(opa) {
 // =========================
 // ✅ SUGGESTIONS
 // - Try LOOKUP2 first
-// - If 0 and house+street present -> fallback to PUBLIC.location
+// - If 0 and house+street present -> fallback to PUBLIC.location (normalized + token-boundary)
 // =========================
 async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
   try {
@@ -361,7 +347,7 @@ async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
     if (qLookupPreferredDir) rows = await runAthena(qLookupPreferredDir);
     if (!rows.length) rows = await runAthena(qLookupNoDir);
 
-    let suggestions =
+    const suggestionsFromLookup =
       (rows || [])
         .map((r) => ({
           address: normalizeAddressOut(r.address_out) || null,
@@ -370,26 +356,42 @@ async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
         }))
         .filter((s) => s.address && s.opa) || [];
 
-    if (suggestions.length) return suggestions;
+    if (suggestionsFromLookup.length) return suggestionsFromLookup;
 
     // -------------------------
     // 2) FALLBACK: PUBLIC.location
+    // Fixes:
+    // - normalize location (trim + collapse whitespace)
+    // - match streetPrefix at token boundary (BRO won't hit MERIBROOK)
+    // - match starts_with on normalized "needle" too
     // -------------------------
     if (!housePrefixSql || !streetPrefixSql) return [];
 
-    const needle = sanitizeSql(
+    const needleNorm = sanitizeSql(
       [housePrefixSql, streetDirSql || null, streetPrefixSql].filter(Boolean).join(" ")
     );
+
+    // location normalization expression in Athena/Presto
+    const locExpr = `
+      REGEXP_REPLACE(UPPER(TRIM(COALESCE(${COL_LOC}, ''))), '\\\\s+', ' ')
+    `;
+
+    // Normalize the constant needles the same way
+    const needleExpr = `REGEXP_REPLACE(UPPER(TRIM('${needleNorm}')), '\\\\s+', ' ')`;
+    const houseExpr = `REGEXP_REPLACE(UPPER(TRIM('${housePrefixSql}')), '\\\\s+', ' ')`;
+
+    // Token-boundary regex for street prefix
+    const streetTokenRe = sanitizeSql(`(^|\\s)${streetPrefixSql}`);
 
     const qPublic = `
       SELECT ${COL_OPA} AS opa_number, ${COL_LOC} AS address_out, ${COL_ZIP} AS zip_code
       FROM ${DATABASE}.${TABLE_PUBLIC}
       WHERE
         (
-          starts_with(UPPER(COALESCE(${COL_LOC}, '')), UPPER('${needle}'))
+          starts_with(${locExpr}, ${needleExpr})
           OR (
-            starts_with(UPPER(COALESCE(${COL_LOC}, '')), UPPER('${housePrefixSql}'))
-            AND strpos(UPPER(COALESCE(${COL_LOC}, '')), UPPER('${streetPrefixSql}')) > 0
+            starts_with(${locExpr}, ${houseExpr})
+            AND regexp_like(${locExpr}, '${streetTokenRe}')
           )
         )
         ${zip ? `AND ${COL_ZIP} = '${sanitizeSql(zip)}'` : ``}
@@ -465,7 +467,6 @@ router.get("/__debug_suggest", async (req, res) => {
     const core = removeZip(qSansCity, zip);
 
     const { housePrefix, streetDir, streetPrefix } = parseSuggestParts(core);
-
     const housePrefixSql = housePrefix ? sanitizeSql(housePrefix) : null;
     const streetDirSql = streetDir ? sanitizeSql(streetDir) : null;
     const streetPrefixSql = streetPrefix ? sanitizeSql(streetPrefix) : null;
@@ -495,32 +496,42 @@ router.get("/__debug_suggest", async (req, res) => {
       LIMIT 25
     `;
 
-    const needle =
-      housePrefixSql && streetPrefixSql
-        ? sanitizeSql(
-            [housePrefixSql, streetDirSql || null, streetPrefixSql]
-              .filter(Boolean)
-              .join(" ")
-          )
-        : null;
-
-    const qPublic = needle
-      ? `
-        SELECT ${COL_OPA} AS opa_number, ${COL_LOC} AS address_out, ${COL_ZIP} AS zip_code
-        FROM ${DATABASE}.${TABLE_PUBLIC}
-        WHERE
-          (
-            starts_with(UPPER(COALESCE(${COL_LOC}, '')), UPPER('${needle}'))
-            OR (
-              starts_with(UPPER(COALESCE(${COL_LOC}, '')), UPPER('${housePrefixSql}'))
-              AND strpos(UPPER(COALESCE(${COL_LOC}, '')), UPPER('${streetPrefixSql}')) > 0
-            )
-          )
-          ${zip ? `AND ${COL_ZIP} = '${sanitizeSql(zip)}'` : ``}
-        ORDER BY address_out
-        LIMIT 25
-      `
+    const needleNorm = housePrefixSql && streetPrefixSql
+      ? sanitizeSql([housePrefixSql, streetDirSql || null, streetPrefixSql].filter(Boolean).join(" "))
       : null;
+
+    const locExpr = `
+      REGEXP_REPLACE(UPPER(TRIM(COALESCE(${COL_LOC}, ''))), '\\\\s+', ' ')
+    `;
+
+    const needleExpr = needleNorm
+      ? `REGEXP_REPLACE(UPPER(TRIM('${needleNorm}')), '\\\\s+', ' ')`
+      : null;
+
+    const houseExpr = housePrefixSql
+      ? `REGEXP_REPLACE(UPPER(TRIM('${housePrefixSql}')), '\\\\s+', ' ')`
+      : null;
+
+    const streetTokenRe = streetPrefixSql ? sanitizeSql(`(^|\\s)${streetPrefixSql}`) : null;
+
+    const qPublic =
+      needleNorm && needleExpr && houseExpr && streetTokenRe
+        ? `
+          SELECT ${COL_OPA} AS opa_number, ${COL_LOC} AS address_out, ${COL_ZIP} AS zip_code
+          FROM ${DATABASE}.${TABLE_PUBLIC}
+          WHERE
+            (
+              starts_with(${locExpr}, ${needleExpr})
+              OR (
+                starts_with(${locExpr}, ${houseExpr})
+                AND regexp_like(${locExpr}, '${streetTokenRe}')
+              )
+            )
+            ${zip ? `AND ${COL_ZIP} = '${sanitizeSql(zip)}'` : ``}
+          ORDER BY address_out
+          LIMIT 25
+        `
+        : null;
 
     const rowsLookup = await runAthena(qLookup);
     const rowsPublic = qPublic ? await runAthena(qPublic) : [];
@@ -539,7 +550,8 @@ router.get("/__debug_suggest", async (req, res) => {
 });
 
 // =========================
-// SUGGEST
+// SUGGEST (autocomplete)
+// GET /api/opa/suggest?query=1539 S Lam&limit=10
 // =========================
 router.get("/suggest", async (req, res) => {
   try {
