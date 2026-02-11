@@ -406,8 +406,6 @@ async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
 
     // -------------------------
     // 2) LOOKUP2 BLOCK FALLBACK (ONLY for 3+ digits)
-    // If 526 MARK doesn't exist, return 500–599 MARKET results.
-    // Also includes ranges that overlap the block.
     // -------------------------
     if (!isExactHouseMode || !streetPrefixSql) return [];
 
@@ -609,17 +607,47 @@ router.get("/search", async (req, res) => {
 
     // -------------------------
     // 1) STRICT exact match (LOOKUP)
+    // ✅ FIX: ignore designation/suffix completely.
+    // Match on house number (including ranges) + direction (if provided) + street_name (+ zip if provided).
     // -------------------------
     if (hasHouse && hasStreet) {
       const streetNameSql = sanitizeSql(parsed.streetName);
       const streetDirSql = parsed.streetDirection ? sanitizeSql(parsed.streetDirection) : null;
-      const streetDesSql = parsed.streetDesignation ? sanitizeSql(parsed.streetDesignation) : null;
 
       const addrSql = buildAddrSql();
 
-      // ✅ FIX: match using LOOKUP2’s own normalized address string (addrSql)
-      // This avoids street_name vs street_designation/suffix storage mismatches.
-      const addrCoreSql = sanitizeSql(addrCore);
+      const hnoStr = `TRIM(CAST(${COL_HNO} AS VARCHAR))`;
+
+      // end of "524-28" => 528, "1001-19" => 1019
+      const rangeEndFrom = (tokenExpr) => `
+        CASE
+          WHEN length(split_part(${tokenExpr}, '-', 2)) < length(split_part(${tokenExpr}, '-', 1))
+            THEN
+              (
+                CAST(
+                  floor(
+                    TRY_CAST(split_part(${tokenExpr}, '-', 1) AS DOUBLE)
+                    / pow(10, length(split_part(${tokenExpr}, '-', 2)))
+                  ) AS INTEGER
+                )
+                * CAST(pow(10, length(split_part(${tokenExpr}, '-', 2))) AS INTEGER)
+              )
+              + TRY_CAST(split_part(${tokenExpr}, '-', 2) AS INTEGER)
+          ELSE TRY_CAST(split_part(${tokenExpr}, '-', 2) AS INTEGER)
+        END
+      `;
+
+      const houseMatchLookup = `
+        (
+          (regexp_like(${hnoStr}, '^\\d+$') AND TRY_CAST(${hnoStr} AS INTEGER) = ${parsed.houseNumber})
+          OR (
+            regexp_like(${hnoStr}, '^\\d+-\\d+$')
+            AND ${parsed.houseNumber} BETWEEN
+              TRY_CAST(split_part(${hnoStr}, '-', 1) AS INTEGER)
+              AND ${rangeEndFrom(hnoStr)}
+          )
+        )
+      `;
 
       const exactLookupQ = `
         SELECT
@@ -638,9 +666,9 @@ router.get("/search", async (req, res) => {
           ) AS sale_date
         FROM ${DATABASE}.${TABLE_LOOKUP}
         WHERE
-          regexp_replace(UPPER(${addrSql}), '\\\\s+', ' ')
-          =
-          regexp_replace(UPPER('${addrCoreSql}'), '\\\\s+', ' ')
+          ${houseMatchLookup}
+          AND UPPER(COALESCE(${COL_SNAME}, '')) = UPPER('${streetNameSql}')
+          ${streetDirSql ? `AND UPPER(COALESCE(${COL_SDIR}, '')) = UPPER('${streetDirSql}')` : ``}
           ${zip ? `AND ${COL_ZIP} = '${sanitizeSql(zip)}'` : ``}
         LIMIT 1
       `;
