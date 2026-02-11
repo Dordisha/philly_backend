@@ -617,6 +617,13 @@ router.get("/search", async (req, res) => {
 
       const addrSql = buildAddrSql();
 
+      // ✅ NEW: normalized street-combo input (matches lookup2 storage shape)
+      const streetComboIn = sanitizeSql(
+        normalizeAddressForMatch(
+          [parsed.streetName, parsed.streetDesignation].filter(Boolean).join(" ")
+        )
+      );
+
       const exactLookupQ = `
         SELECT
           ${COL_OPA} AS opa_number,
@@ -635,16 +642,19 @@ router.get("/search", async (req, res) => {
         FROM ${DATABASE}.${TABLE_LOOKUP}
         WHERE
           TRY_CAST(${COL_HNO} AS INTEGER) = ${parsed.houseNumber}
-          AND UPPER(${COL_SNAME}) = UPPER('${streetNameSql}')
           ${streetDirSql ? `AND UPPER(COALESCE(${COL_SDIR}, '')) = UPPER('${streetDirSql}')` : ``}
-          ${
-            streetDesSql
-              ? `AND (
-                   UPPER(COALESCE(${COL_SDES}, '')) = UPPER('${streetDesSql}')
-                   OR UPPER(COALESCE(${COL_SUFFIX}, '')) = UPPER('${streetDesSql}')
-                 )`
-              : ``
-          }
+
+          -- ✅ REPLACED STRICT WHERE: compare normalized "name + (designation OR suffix)"
+          AND UPPER(
+            TRIM(
+              CONCAT_WS(
+                ' ',
+                COALESCE(${COL_SNAME}, ''),
+                COALESCE(NULLIF(${COL_SDES}, ''), NULLIF(${COL_SUFFIX}, ''), '')
+              )
+            )
+          ) = UPPER('${streetComboIn}')
+
           ${zip ? `AND ${COL_ZIP} = '${sanitizeSql(zip)}'` : ``}
         LIMIT 1
       `;
