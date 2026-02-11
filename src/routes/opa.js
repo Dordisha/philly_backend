@@ -607,18 +607,17 @@ router.get("/search", async (req, res) => {
 
     // -------------------------
     // 1) STRICT exact match (LOOKUP)
-    // ✅ FIX: if user typed the address and strict matching is brittle, resolve by LOOKUP2 suggestions first.
-    // This removes the "Not Found but suggestions exist" UX.
-    // -------------------------
-    if (hasHouse && hasStreet) {
-      const best = await fetchSuggestionsFromLookup(address, 1);
-      if (!best.length || !best[0].opa) return await addressNotFound(res, address);
+// ✅ Typed address fallback: resolve best OPA via lookup2 suggest, then return OPA detail.
+if (hasHouse && hasStreet) {
+  const best = await fetchSuggestionsFromLookup(address, 1);
+  if (!best.length || !best[0].opa) return await addressNotFound(res, address);
 
-      const result = await lookupByOpa(best[0].opa);
-      if (!result) return await addressNotFound(res, address);
+  const result = await lookupByOpa(best[0].opa);
+  if (!result) return await addressNotFound(res, address);
 
-      return res.json({ ok: true, mode: "address", result });
-    }
+  return res.json({ ok: true, mode: "address", result });
+}
+
 
     // -------------------------
     // 2) Fuzzy match ONLY if no house number (PUBLIC)
