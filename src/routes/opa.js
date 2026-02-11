@@ -4,7 +4,9 @@
 // - Fixes: 526 MARK returns same-block suggestions even if 526 parcel doesn't exist
 // - Keeps: strict address search on LOOKUP2 + fuzzy only when no house number
 //
-// NOTE: Debug routes are included and are defined BEFORE export default.
+// IMPORTANT BEHAVIOR (per latest decision):
+// - /search with full address is STRICT: if not found -> 404 + suggestions (no auto-resolve)
+// - Suggestions still use range-aware + block fallback (for UX), but /search does NOT auto-pick.
 
 import { Router } from "express";
 import { fileURLToPath } from "url";
@@ -321,7 +323,6 @@ async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
     const isExactHouseMode = houseDigits >= 3 && Number.isFinite(houseInt);
 
     // Build Athena SQL: compute end of a range like "524-28" => 528
-    // Works for patterns: 1001-19 => 1019, 524-28 => 528
     const rangeEndFrom = (tokenExpr) => `
       CASE
         WHEN length(split_part(${tokenExpr}, '-', 2)) < length(split_part(${tokenExpr}, '-', 1))
@@ -406,6 +407,7 @@ async function fetchSuggestionsFromLookup(rawAddress, lim = 10) {
 
     // -------------------------
     // 2) LOOKUP2 BLOCK FALLBACK (ONLY for 3+ digits)
+    // If 526 parcel doesn't exist, return 500–599 block suggestions.
     // -------------------------
     if (!isExactHouseMode || !streetPrefixSql) return [];
 
@@ -606,18 +608,45 @@ router.get("/search", async (req, res) => {
     const hasStreet = said(parsed.streetName);
 
     // -------------------------
-    // 1) STRICT exact match (LOOKUP)
-// ✅ Typed address fallback: resolve best OPA via lookup2 suggest, then return OPA detail.
-if (hasHouse && hasStreet) {
-  const best = await fetchSuggestionsFromLookup(address, 1);
-  if (!best.length || !best[0].opa) return await addressNotFound(res, address);
+    // 1) STRICT exact match (LOOKUP2 ONLY) — NO AUTO RESOLVE
+    // If not found, return 404 + suggestions.
+    // -------------------------
+    if (hasHouse && hasStreet) {
+      const streetNameSql = sanitizeSql(parsed.streetName);
+      const streetDirSql = parsed.streetDirection ? sanitizeSql(parsed.streetDirection) : null;
+      const streetDesSql = parsed.streetDesignation ? sanitizeSql(parsed.streetDesignation) : null;
 
-  const result = await lookupByOpa(best[0].opa);
-  if (!result) return await addressNotFound(res, address);
+      const addrSql = buildAddrSql();
 
-  return res.json({ ok: true, mode: "address", result });
-}
+      const exactLookupQ = `
+        SELECT
+          ${COL_OPA} AS opa_number,
+          ${addrSql} AS address_out
+        FROM ${DATABASE}.${TABLE_LOOKUP}
+        WHERE
+          TRY_CAST(${COL_HNO} AS INTEGER) = ${parsed.houseNumber}
+          AND UPPER(${COL_SNAME}) = UPPER('${streetNameSql}')
+          ${streetDirSql ? `AND UPPER(COALESCE(${COL_SDIR}, '')) = UPPER('${streetDirSql}')` : ``}
+          ${
+            streetDesSql
+              ? `AND (
+                   UPPER(COALESCE(${COL_SDES}, '')) = UPPER('${streetDesSql}')
+                   OR UPPER(COALESCE(${COL_SUFFIX}, '')) = UPPER('${streetDesSql}')
+                 )`
+              : ``
+          }
+          ${zip ? `AND ${COL_ZIP} = '${sanitizeSql(zip)}'` : ``}
+        LIMIT 1
+      `;
 
+      const rows = await runAthena(exactLookupQ);
+      if (!rows.length) return await addressNotFound(res, address);
+
+      const result = await lookupByOpa(rows[0].opa_number);
+      if (!result) return await addressNotFound(res, address);
+
+      return res.json({ ok: true, mode: "address", result });
+    }
 
     // -------------------------
     // 2) Fuzzy match ONLY if no house number (PUBLIC)
