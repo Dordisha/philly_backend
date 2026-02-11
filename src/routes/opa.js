@@ -707,3 +707,85 @@ router.get("/", async (req, res) => {
 });
 
 export default router;
+// =========================
+// DEBUG (TEMP) — prove suggest queries and counts
+// GET /api/opa/__debug_suggest?query=526%20MARK
+// =========================
+router.get("/__debug_suggest", async (req, res) => {
+  try {
+    const query = String(req.query.query || "").trim();
+    if (!query) return res.status(400).json({ ok: false, error: "Missing ?query" });
+
+    const qNorm = normalizeAddressForMatch(query);
+    const qSansCity = stripCityStateZip(qNorm);
+    const zip = extractZip(qSansCity);
+    const core = removeZip(qSansCity, zip);
+
+    const { housePrefix, streetDir, streetPrefix } = parseSuggestParts(core);
+
+    const housePrefixSql = housePrefix ? sanitizeSql(housePrefix) : null;
+    const streetDirSql = streetDir ? sanitizeSql(streetDir) : null;
+    const streetPrefixSql = streetPrefix ? sanitizeSql(streetPrefix) : null;
+
+    const addrSql = buildAddrSql();
+    const streetComboSql = `
+      UPPER(TRIM(CONCAT_WS(
+        ' ',
+        COALESCE(${COL_SNAME}, ''),
+        COALESCE(${COL_SDES}, ''),
+        COALESCE(${COL_SUFFIX}, '')
+      )))
+    `;
+
+    const whereLookup = `
+      1=1
+      ${zip ? `AND ${COL_ZIP} = '${sanitizeSql(zip)}'` : ``}
+      ${housePrefixSql ? `AND starts_with(CAST(${COL_HNO} AS VARCHAR), '${housePrefixSql}')` : ``}
+      ${streetPrefixSql ? `AND ${streetComboSql} LIKE UPPER('${streetPrefixSql}%')` : ``}
+    `;
+
+    const qLookup = `
+      SELECT ${COL_OPA} AS opa_number, ${addrSql} AS address_out, ${COL_ZIP} AS zip_code
+      FROM ${DATABASE}.${TABLE_LOOKUP}
+      WHERE ${whereLookup}
+      ORDER BY address_out
+      LIMIT 25
+    `;
+
+    const needle = housePrefixSql && streetPrefixSql
+      ? sanitizeSql([housePrefixSql, streetDirSql || null, streetPrefixSql].filter(Boolean).join(" "))
+      : null;
+
+    const qPublic = needle
+      ? `
+        SELECT ${COL_OPA} AS opa_number, ${COL_LOC} AS address_out, ${COL_ZIP} AS zip_code
+        FROM ${DATABASE}.${TABLE_PUBLIC}
+        WHERE
+          (
+            starts_with(UPPER(COALESCE(${COL_LOC}, '')), UPPER('${needle}'))
+            OR (
+              starts_with(UPPER(COALESCE(${COL_LOC}, '')), UPPER('${housePrefixSql}'))
+              AND strpos(UPPER(COALESCE(${COL_LOC}, '')), UPPER('${streetPrefixSql}')) > 0
+            )
+          )
+          ${zip ? `AND ${COL_ZIP} = '${sanitizeSql(zip)}'` : ``}
+        ORDER BY address_out
+        LIMIT 25
+      `
+      : null;
+
+    const rowsLookup = await runAthena(qLookup);
+    const rowsPublic = qPublic ? await runAthena(qPublic) : [];
+
+    return res.json({
+      ok: true,
+      buildStamp: BUILD_STAMP,
+      parsed: { housePrefix, streetDir, streetPrefix, zip },
+      sql: { qLookup, qPublic },
+      counts: { lookup: rowsLookup.length, public: rowsPublic.length },
+      sample: { lookup: rowsLookup.slice(0, 5), public: rowsPublic.slice(0, 5) },
+    });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: e.message, buildStamp: BUILD_STAMP });
+  }
+});
