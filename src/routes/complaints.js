@@ -7,7 +7,14 @@ const CARTO_SQL_API = "https://phl.carto.com/api/v2/sql";
 async function carto(sql) {
   const url = `${CARTO_SQL_API}?q=${encodeURIComponent(sql)}`;
   const res = await fetch(url, { headers: { Accept: "application/json" } });
-  const json = await res.json().catch(() => null);
+  const text = await res.text();
+
+  let json;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new Error(`CARTO non-JSON response: ${text.slice(0, 200)}`);
+  }
 
   if (!res.ok || json?.error) {
     const msg = json?.error?.[0] || `CARTO error HTTP ${res.status}`;
@@ -31,28 +38,52 @@ function opaRequired(res) {
   });
 }
 
-// ✅ MAIN PAGE AGGREGATE
+/**
+ * ✅ Schema probe (NO system tables)
+ * GET /api/complaints/columns
+ */
+router.get("/columns", async (req, res) => {
+  try {
+    const out = await carto(`SELECT * FROM complaints LIMIT 0`);
+    return res.json({
+      ok: true,
+      fields: out.fields || {},
+    });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+/**
+ * ✅ MAIN PAGE AGGREGATE
+ * GET /api/complaints/summary?opa=112273500
+ *
+ * IMPORTANT:
+ * This "complaints" table does NOT have service_name/service_request_id.
+ * It appears to have complaintdate (based on common Philly complaints table patterns).
+ */
 router.get("/summary", async (req, res) => {
   const opa = cleanOpa(req.query.opa);
   if (!opa) return opaRequired(res);
 
   try {
-    // Start with the common 311 complaints fields used in Philly CARTO datasets.
-    // If CARTO complains about any column, we'll adjust using /columns quickly.
     const sql = `
       WITH base AS (
         SELECT
           opa_account_num,
-          COALESCE(status, '') AS status,
-          COALESCE(service_name, '') AS service_name,
-          requested_datetime::timestamptz AS requested_at
+          complaintdate::timestamptz AS complaint_at,
+          COALESCE(status, '') AS status
         FROM complaints
         WHERE opa_account_num = '${opa}'
       )
       SELECT
         COUNT(*)::bigint AS total_count,
-        COUNT(*) FILTER (WHERE UPPER(status) NOT IN ('CLOSED','RESOLVED','COMPLETED'))::bigint AS open_count,
-        MAX(requested_at) AS last_activity
+        COUNT(*) FILTER (
+          WHERE status IS NOT NULL
+          AND TRIM(status) <> ''
+          AND UPPER(status) NOT IN ('CLOSED','RESOLVED','COMPLETED')
+        )::bigint AS open_count,
+        MAX(complaint_at) AS last_activity
       FROM base
     `;
 
@@ -78,11 +109,22 @@ router.get("/summary", async (req, res) => {
       risk_level: risk,
     });
   } catch (e) {
-    return res.status(500).json({ ok: false, error: e.message });
+    return res.status(500).json({
+      ok: false,
+      error: e.message,
+      hint:
+        "Run GET /api/complaints/columns to confirm exact column names. If complaintdate/status differ, we will map them.",
+    });
   }
 });
 
-// ✅ SECOND PAGE DETAILS (NOT PAID YET)
+/**
+ * ✅ SECOND PAGE DETAILS (NOT PAID YET)
+ * GET /api/complaints/details?opa=...&limit=10&offset=0
+ *
+ * We return a "safe" common set of likely columns.
+ * If any column name differs, /columns will tell us and we adjust fast.
+ */
 router.get("/details", async (req, res) => {
   const opa = cleanOpa(req.query.opa);
   if (!opa) return opaRequired(res);
@@ -93,18 +135,17 @@ router.get("/details", async (req, res) => {
   try {
     const sql = `
       SELECT
-        service_request_id,
-        service_name,
+        cartodb_id,
+        complaintdate::timestamptz AS complaintdate,
         status,
-        requested_datetime::timestamptz AS requested_datetime,
-        updated_datetime::timestamptz AS updated_datetime,
         address,
-        agency_responsible,
-        subject,
-        description
+        complaint,
+        complainttype,
+        agency,
+        department
       FROM complaints
       WHERE opa_account_num = '${opa}'
-      ORDER BY requested_datetime DESC NULLS LAST
+      ORDER BY complaintdate DESC NULLS LAST
       LIMIT ${limit}
       OFFSET ${offset}
     `;
@@ -120,7 +161,12 @@ router.get("/details", async (req, res) => {
       rows: out?.rows || [],
     });
   } catch (e) {
-    return res.status(500).json({ ok: false, error: e.message });
+    return res.status(500).json({
+      ok: false,
+      error: e.message,
+      hint:
+        "Run GET /api/complaints/columns to confirm exact column names. Then we will align complaint/status/type fields.",
+    });
   }
 });
 
