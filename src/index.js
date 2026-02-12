@@ -34,9 +34,15 @@ app.get("/healthz", (req, res) => {
   res.json({
     ok: true,
     ts: Date.now(),
-    service: process.env.RENDER_SERVICE_NAME || null,
-    commit: process.env.RENDER_GIT_COMMIT || null,
-    branch: process.env.RENDER_GIT_BRANCH || null,
+    fingerprint: "TEST-ROUTER-COMPLAINTS-001",
+    file: `file://${__filename}`,
+  });
+});
+app.get("/__whoami", (req, res) => {
+  res.json({
+    ok: true,
+    fingerprint: "TEST-ROUTER-COMPLAINTS-001",
+    file: `file://${__filename}`,
   });
 });
 
