@@ -1,9 +1,11 @@
+// src/index.js
 import express from "express";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 
 import opaRouter from "./routes/opa.js";
 import violationsRouter from "./routes/violations.js";
+import complaintsRouter from "./routes/complaints.js";
 
 import {
   athenaSelect1,
@@ -13,15 +15,10 @@ import {
 } from "./lib/athenaDiag.js";
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename); // (kept in case you use it later)
+const __dirname = dirname(__filename);
 
 const app = express();
 
-/**
- * IMPORTANT:
- * - PORT stays configurable
- * - HOST MUST be 0.0.0.0 so simulators & devices can connect
- */
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || "0.0.0.0";
 
@@ -34,11 +31,23 @@ app.use(express.json());
    ========================= */
 
 app.get("/healthz", (req, res) => {
-  res.json({ ok: true, ts: Date.now() });
+  res.json({
+    ok: true,
+    ts: Date.now(),
+    service: process.env.RENDER_SERVICE_NAME || null,
+    commit: process.env.RENDER_GIT_COMMIT || null,
+    branch: process.env.RENDER_GIT_BRANCH || null,
+  });
 });
 
 app.get("/_root", (req, res) => {
-  res.json({ msg: "root alive", ts: Date.now() });
+  res.json({
+    msg: "root alive",
+    ts: Date.now(),
+    service: process.env.RENDER_SERVICE_NAME || null,
+    commit: process.env.RENDER_GIT_COMMIT || null,
+    branch: process.env.RENDER_GIT_BRANCH || null,
+  });
 });
 
 /* =========================
@@ -50,6 +59,9 @@ app.use("/api/opa", opaRouter);
 
 console.log("🔗 Mounting Violations router at /api/violations");
 app.use("/api/violations", violationsRouter);
+
+console.log("🔗 Mounting Complaints router at /api/complaints");
+app.use("/api/complaints", complaintsRouter);
 
 /* =========================
    ATHENA DIAGNOSTICS (TEMP)
