@@ -34,7 +34,7 @@ app.get("/healthz", (req, res) => {
   res.json({
     ok: true,
     ts: Date.now(),
-    fingerprint: "TEST-ROUTER-COMPLAINTS-001",
+    fingerprint: "TEST-ROUTER-COMPLAINTS-002",
     file: `file://${__filename}`,
   });
 });
