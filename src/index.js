@@ -1,8 +1,10 @@
 import express from "express";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
+
 import opaRouter from "./routes/opa.js";
-import violations from "./routes/violations.js";
+import violationsRouter from "./routes/violations.js";
+
 import {
   athenaSelect1,
   athenaListTables,
@@ -11,7 +13,7 @@ import {
 } from "./lib/athenaDiag.js";
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __dirname = dirname(__filename); // (kept in case you use it later)
 
 const app = express();
 
@@ -47,7 +49,7 @@ console.log("🔗 Mounting OPA router at /api/opa");
 app.use("/api/opa", opaRouter);
 
 console.log("🔗 Mounting Violations router at /api/violations");
-app.use("/api/violations", violations);
+app.use("/api/violations", violationsRouter);
 
 /* =========================
    ATHENA DIAGNOSTICS (TEMP)
