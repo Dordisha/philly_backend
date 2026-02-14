@@ -7,6 +7,12 @@
 // IMPORTANT BEHAVIOR (per latest decision):
 // - /search with full address is STRICT: if not found -> 404 + suggestions (no auto-resolve)
 // - Suggestions still use range-aware + block fallback (for UX), but /search does NOT auto-pick.
+//
+// ✅ NEW FIXES (PROD-PARITY):
+// - /suggest accepts BOTH ?query= and ?q= (app compatibility)
+// - /search strict now has a safe fallback:
+//   If strict parts-match fails, it tries an exact normalized full street-line match via LOOKUP2.
+//   This makes "1539 S LAMBERT ST PHILADELPHIA PA" return ok:true when data exists.
 
 import { Router } from "express";
 import { fileURLToPath } from "url";
@@ -202,6 +208,18 @@ function buildAddrSql() {
       NULLIF(${COL_SUFFIX}, '')
     ))
   `;
+}
+
+// Build the "street line" from user-parsed parts (no city/state/zip)
+function buildUserStreetLineUpper(parsed) {
+  const parts = [
+    parsed.houseNumber != null ? String(parsed.houseNumber) : null,
+    parsed.streetDirection || null,
+    parsed.streetName || null,
+    parsed.streetDesignation || null,
+  ].filter(Boolean);
+
+  return normalizeAddressForMatch(parts.join(" "));
 }
 
 // =========================
@@ -540,21 +558,23 @@ router.get("/__debug_suggest", async (req, res) => {
 // =========================
 // SUGGEST (autocomplete)
 // GET /api/opa/suggest?query=1539 S Lam&limit=10
+// ✅ Accepts BOTH: ?query= and ?q=
 // =========================
 router.get("/suggest", async (req, res) => {
   try {
-    const { query, limit = "10" } = req.query;
+    const rawQuery = req.query.query ?? req.query.q; // ✅ app compatibility
+    const limit = req.query.limit ?? "10";
 
-    if (!query || !said(query)) {
+    if (!rawQuery || !said(rawQuery)) {
       return res.status(400).json({ ok: false, error: "Missing ?query" });
     }
 
     const lim = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 25);
-    const suggestions = await fetchSuggestionsFromLookup(query, lim);
+    const suggestions = await fetchSuggestionsFromLookup(String(rawQuery), lim);
 
     return res.json({
       ok: true,
-      query: String(query),
+      query: String(rawQuery),
       count: suggestions.length,
       suggestions,
     });
@@ -610,6 +630,7 @@ router.get("/search", async (req, res) => {
     // -------------------------
     // 1) STRICT exact match (LOOKUP2 ONLY) — NO AUTO RESOLVE
     // If not found, return 404 + suggestions.
+    // ✅ FIX: add normalized street-line fallback match (still strict).
     // -------------------------
     if (hasHouse && hasStreet) {
       const streetNameSql = sanitizeSql(parsed.streetName);
@@ -618,6 +639,7 @@ router.get("/search", async (req, res) => {
 
       const addrSql = buildAddrSql();
 
+      // A) Original strict parts match
       const exactLookupQ = `
         SELECT
           ${COL_OPA} AS opa_number,
@@ -639,7 +661,28 @@ router.get("/search", async (req, res) => {
         LIMIT 1
       `;
 
-      const rows = await runAthena(exactLookupQ);
+      let rows = await runAthena(exactLookupQ);
+
+      // B) Fallback: normalized full street-line match using LOOKUP2's computed address string.
+      // This catches cases where designation/suffix storage differs.
+      if (!rows.length) {
+        const userStreetLineUpper = buildUserStreetLineUpper(parsed);
+        const userStreetLineSql = sanitizeSql(userStreetLineUpper);
+
+        const normalizedLookupQ = `
+          SELECT
+            ${COL_OPA} AS opa_number,
+            ${addrSql} AS address_out
+          FROM ${DATABASE}.${TABLE_LOOKUP}
+          WHERE
+            ${zip ? `${COL_ZIP} = '${sanitizeSql(zip)}' AND` : ``}
+            UPPER(${addrSql}) = '${userStreetLineSql}'
+          LIMIT 1
+        `;
+
+        rows = await runAthena(normalizedLookupQ);
+      }
+
       if (!rows.length) return await addressNotFound(res, address);
 
       const result = await lookupByOpa(rows[0].opa_number);
