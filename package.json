@@ -5,12 +5,15 @@
   "main": "src/index.js",
   "scripts": {
     "dev": "node -r dotenv/config src/index.js",
-    "start": "node -r dotenv/config src/index.js"
+    "start": "node -r dotenv/config src/index.js",
+    "test": "node --test"
   },
   "dependencies": {
-    "@aws-sdk/client-athena": "^3.920.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

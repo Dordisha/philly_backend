@@ -7,13 +7,6 @@ import opaRouter from "./routes/opa.js";
 import violationsRouter from "./routes/violations.js";
 import complaintsRouter from "./routes/complaints.js";
 
-import {
-  athenaSelect1,
-  athenaListTables,
-  athenaDescribe,
-  athenaSample,
-} from "./lib/athenaDiag.js";
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -34,14 +27,14 @@ app.get("/healthz", (req, res) => {
   res.json({
     ok: true,
     ts: Date.now(),
-    fingerprint: "TEST-ROUTER-COMPLAINTS-002",
+    fingerprint: "CITY-CARTO-001",
     file: `file://${__filename}`,
   });
 });
 app.get("/__whoami", (req, res) => {
   res.json({
     ok: true,
-    fingerprint: "TEST-ROUTER-COMPLAINTS-001",
+    fingerprint: "CITY-CARTO-001",
     file: `file://${__filename}`,
   });
 });
@@ -70,49 +63,6 @@ console.log("🔗 Mounting Complaints router at /api/complaints");
 app.use("/api/complaints", complaintsRouter);
 
 /* =========================
-   ATHENA DIAGNOSTICS (TEMP)
-   ========================= */
-
-app.get("/__athena/select1", async (req, res) => {
-  try {
-    const rows = await athenaSelect1();
-    res.json({ ok: true, rows });
-  } catch (e) {
-    res.status(500).json({ ok: false, error: e.message });
-  }
-});
-
-app.get("/__athena/tables", async (req, res) => {
-  try {
-    const rows = await athenaListTables();
-    res.json({ ok: true, rows });
-  } catch (e) {
-    res.status(500).json({ ok: false, error: e.message });
-  }
-});
-
-app.get("/__athena/describe", async (req, res) => {
-  const table = req.query.table || process.env.OPA_TABLE || "opa_properties_public";
-  try {
-    const rows = await athenaDescribe(table);
-    res.json({ ok: true, rows });
-  } catch (e) {
-    res.status(500).json({ ok: false, error: e.message });
-  }
-});
-
-app.get("/__athena/sample", async (req, res) => {
-  const table = req.query.table || process.env.OPA_TABLE || "opa_properties_public";
-  const limit = parseInt(req.query.limit || "5", 10);
-  try {
-    const rows = await athenaSample(table, limit);
-    res.json({ ok: true, rows });
-  } catch (e) {
-    res.status(500).json({ ok: false, error: e.message });
-  }
-});
-
-/* =========================
    JSON 404 (NO HTML)
    ========================= */
 
@@ -131,3 +81,4 @@ app.use((req, res) => {
 app.listen(PORT, HOST, () => {
   console.log(`🚀 Server running at http://${HOST}:${PORT}`);
 });
+
