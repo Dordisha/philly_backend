@@ -1,12 +1,8 @@
 import express from "express";
+import { queryCarto } from "../lib/carto.js";
 
+export function createViolationsRouter({ query = queryCarto } = {}) {
 const router = express.Router();
-
-const CARTO_URL = "https://phl.carto.com/api/v2/sql";
-
-function cartoUrl(sql) {
-  return `${CARTO_URL}?q=${encodeURIComponent(sql)}`;
-}
 
 function riskLevelFromFlags({ activeCount, hasCourt, hasStopWork, hasUnsafe, hasHazardous }) {
   if (hasStopWork || hasCourt) return "Severe";
@@ -20,7 +16,7 @@ function riskLevelFromFlags({ activeCount, hasCourt, hasStopWork, hasUnsafe, has
 router.get("/summary", async (req, res) => {
   const opa = String(req.query.opa || "").trim();
 
-  if (!opa) {
+  if (!/^\d{6,12}$/.test(opa)) {
     return res.status(400).json({
       ok: false,
       code: "OPA_REQUIRED",
@@ -43,8 +39,7 @@ router.get("/summary", async (req, res) => {
       WHERE opa_account_num = '${opa}'
     `.trim();
 
-    const r = await fetch(cartoUrl(sql));
-    const data = await r.json();
+    const data = { rows: await query(sql) };
 
     const row = data?.rows?.[0];
 
@@ -96,7 +91,7 @@ router.get("/summary", async (req, res) => {
       },
     });
   } catch (e) {
-    return res.status(500).json({
+    return res.status(e.status || 503).json({
       ok: false,
       code: "CARTO_FAILED",
       message: String(e?.message || e),
@@ -107,9 +102,9 @@ router.get("/summary", async (req, res) => {
 // GET /api/violations/details?opa=363258000&limit=200
 router.get("/details", async (req, res) => {
   const opa = String(req.query.opa || "").trim();
-  const limit = Math.min(Number(req.query.limit || 200), 500);
+  const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 200, 1), 500);
 
-  if (!opa) {
+  if (!/^\d{6,12}$/.test(opa)) {
     return res.status(400).json({
       ok: false,
       code: "OPA_REQUIRED",
@@ -140,8 +135,7 @@ router.get("/details", async (req, res) => {
       LIMIT ${limit}
     `.trim();
 
-    const r = await fetch(cartoUrl(sql));
-    const data = await r.json();
+    const data = { rows: await query(sql) };
 
     return res.json({
       ok: true,
@@ -150,7 +144,7 @@ router.get("/details", async (req, res) => {
       rows: data?.rows || [],
     });
   } catch (e) {
-    return res.status(500).json({
+    return res.status(e.status || 503).json({
       ok: false,
       code: "CARTO_FAILED",
       message: String(e?.message || e),
@@ -158,4 +152,8 @@ router.get("/details", async (req, res) => {
   }
 });
 
-export default router;
+return router;
+}
+
+export default createViolationsRouter();
+
