@@ -29,12 +29,13 @@ void main() {
       'Open violation details',
       'Renovation resale analysis',
     ]) {
-      await tester.ensureVisible(find.text(title));
+      await tester.scrollUntilVisible(find.text(title), 200);
       await tester.tap(find.text(title));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     }
-    expect(find.textContaining('Sample resale range'), findsOneWidget);
+    await tester.scrollUntilVisible(find.textContaining('Sample value scenarios'), 200);
+    expect(find.textContaining('Sample value scenarios'), findsOneWidget);
     await tester.pageBack();
     await tester.pumpAndSettle();
     expect(find.text('Upgrade'), findsOneWidget);
