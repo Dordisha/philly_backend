@@ -133,6 +133,7 @@ class _ViolationSummaryCardState extends State<ViolationSummaryCard> {
                     onPressed: () async {
                       await showProComingSoonDialog(
                         context,
+                        opa: widget.opa, initialSection: 1,
                         title: "Enforcement Details",
                         message:
                             "You can see the summary for free.\n\nDetailed case history and enforcement records will be available in the Pro version soon.",
