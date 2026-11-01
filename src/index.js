@@ -6,6 +6,7 @@ import { dirname } from "path";
 import opaRouter from "./routes/opa.js";
 import violationsRouter from "./routes/violations.js";
 import complaintsRouter from "./routes/complaints.js";
+import recordsRouter from "./routes/records.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -61,6 +62,7 @@ app.use("/api/violations", violationsRouter);
 
 console.log("🔗 Mounting Complaints router at /api/complaints");
 app.use("/api/complaints", complaintsRouter);
+app.use("/api/records", recordsRouter);
 
 /* =========================
    JSON 404 (NO HTML)
