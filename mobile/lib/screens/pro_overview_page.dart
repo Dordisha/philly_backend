@@ -18,7 +18,14 @@ class _ProOverviewPageState extends State<ProOverviewPage> {
   void initState() {
     super.initState();
     _client = widget.client ?? ApiClient();
-    _sections = List.generate(4, _load);
+    _sections = List.generate(4, _startLoad);
+  }
+  Future<Map<String, dynamic>> _startLoad(int i) {
+    final future = _load(i);
+    // Offscreen cards may not have mounted their FutureBuilder yet.
+    // Observe failures immediately; the original future still reports them to the card.
+    future.then<void>((_) {}, onError: (Object error, StackTrace stack) {});
+    return future;
   }
   Future<Map<String, dynamic>> _load(int i) async {
     final data = await _client.get('/api/records/${recordSections[i]}', {
@@ -50,7 +57,7 @@ class _ProOverviewPageState extends State<ProOverviewPage> {
         if (snap.hasError) {
           return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(i == 2 ? 'A resale estimate is unavailable for this property.' : 'This data is currently unavailable.'),
-            TextButton(onPressed: () => setState(() => _sections[i] = _load(i)),
+            TextButton(onPressed: () => setState(() => _sections[i] = _startLoad(i)),
               child: const Text('Retry')),
           ]);
         }
