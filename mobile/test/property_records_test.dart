@@ -36,7 +36,7 @@ void main() {
     )));
     await tester.pumpAndSettle();
     expect(find.text('Maintenance Complaint'), findsOneWidget);
-    expect(find.text('status: Closed'), findsOneWidget);
+    expect(find.text('Status: Closed'), findsOneWidget);
     await tester.scrollUntilVisible(find.text('Next'), 200);
     await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
