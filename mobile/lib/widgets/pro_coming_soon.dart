@@ -1,21 +1,24 @@
 import 'package:flutter/material.dart';
 import '../config/pro_preview_config.dart';
 import '../screens/property_records_page.dart';
+import '../screens/pro_overview_page.dart';
+import '../src/api_client.dart';
 
 Future<void> showProComingSoonDialog(
   BuildContext context, {
   String? opa,
   String address = '',
-  int initialSection = 0,
+  int initialSection = -1,
+  ApiClient? recordsClient,
   String title = "Enforcement Details",
   String message =
       "You can see the summary for free.\n\nDetailed case history and enforcement records will be available in the Pro version soon.",
 }) async {
   if (ProPreviewConfig.enabled && opa != null && opa.isNotEmpty) {
     await Navigator.of(context).push<void>(
-      MaterialPageRoute(builder: (_) => PropertyRecordsPage(
-        opa: opa, address: address, initialSection: initialSection,
-      )),
+      MaterialPageRoute(builder: (_) => initialSection < 0
+        ? ProOverviewPage(opa: opa, address: address, client: recordsClient)
+        : PropertyRecordsPage(opa: opa, address: address, initialSection: initialSection, client: recordsClient)),
     );
     return;
   }

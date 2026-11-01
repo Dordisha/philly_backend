@@ -7,6 +7,8 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'api_service.dart';
+import 'api_client.dart' show ApiClient;
+import '../config/pro_preview_config.dart';
 import 'models/property_result.dart';
 
 // ✅ Violations
@@ -47,9 +49,10 @@ class PhillyScanApp extends StatelessWidget {
 }
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, this.apiService, this.violationsService});
+  const HomeScreen({super.key, this.apiService, this.violationsService, this.recordsClient});
   final ApiService? apiService;
   final ViolationsService? violationsService;
+  final ApiClient? recordsClient;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -254,6 +257,22 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted || generation != _scanGeneration) return;
       setState(() => _loading = false);
     }
+  }
+
+  Future<void> _openPro() async {
+    if (ProPreviewConfig.enabled && _result == null) {
+      if (_controller.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Enter a property address first.')),
+        );
+        return;
+      }
+      await _scan();
+      if (!mounted || _result == null) return;
+    }
+    if (!mounted) return;
+    await showProComingSoonDialog(context, opa: _result?.opa,
+      address: _result?.address ?? '', recordsClient: widget.recordsClient);
   }
 
   void _applySuggestion(Map<String, dynamic> s) async {
@@ -632,16 +651,18 @@ class _HomeScreenState extends State<HomeScreen> {
                         style: _subtitleStyle,
                       ),
                     ),
+                    if (ProPreviewConfig.enabled) const Center(
+                      child: Text('LIVE DATA TEST • R2', style: TextStyle(color: Colors.greenAccent)),
+                    ),
                     const SizedBox(height: 18),
 
                     // ✅ Feedback banner
                     _feedbackBanner(),
 
                     TextButton.icon(
-                      onPressed: () => showProComingSoonDialog(context,
-                        opa: _result?.opa, address: _result?.address ?? ''),
+                      onPressed: _loading ? null : _openPro,
                       icon: const Icon(Icons.workspace_premium_outlined),
-                      label: const Text('Upgrade to Pro'),
+                      label: Text(ProPreviewConfig.enabled ? 'Open Pro • Live data' : 'Upgrade to Pro'),
                     ),
 
                     Container(

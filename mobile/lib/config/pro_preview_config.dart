@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 
-/// UI samples only. Never grants a server entitlement or enables purchases.
+/// Debug builds open live-data testing by default. No server entitlement or purchase is granted.
 abstract final class ProPreviewConfig {
   static const enabled = kDebugMode &&
-      bool.fromEnvironment('PRO_PREVIEW', defaultValue: false);
+      bool.fromEnvironment('PRO_PREVIEW', defaultValue: true);
 }

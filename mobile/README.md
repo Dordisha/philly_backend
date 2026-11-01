@@ -62,3 +62,17 @@ No signed binary, TestFlight upload or store submission is created by these test
 Keep draft until owner device testing and explicit production-release direction.
 Accepted planned prices: $2.99/month or $24.99/year. Charges inactive; real
 server-verified entitlement/purchase/restore validation remains a release gate.
+
+## R2 Pro entry fix
+
+Xcode Debug builds now enable free live-data testing by default; no dart-define is required.
+PRO_PREVIEW=false can explicitly disable it; profile/release builds remain gated.
+The home screen shows LIVE DATA TEST • R2 and Open Pro • Live data. Clicking Pro
+looks up the entered address if needed and opens an overview showing 311 count,
+L&I count, a resale range when supported, signals and market-data availability.
+Each card opens its underlying data. Market status is Unknown until a permitted
+listing feed is connected; no listing check is claimed.
+
+The resale calculation remains an experimental sales benchmark with explicit assumptions;
+signals remain weak context when no direct selling-intent evidence exists. Do not present
+these as a fully validated pricing model or completed strong/medium seller prediction.
