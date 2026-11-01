@@ -638,7 +638,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     _feedbackBanner(),
 
                     TextButton.icon(
-                      onPressed: () => showProComingSoonDialog(context),
+                      onPressed: () => showProComingSoonDialog(context,
+                        opa: _result?.opa, address: _result?.address ?? ''),
                       icon: const Icon(Icons.workspace_premium_outlined),
                       label: const Text('Upgrade to Pro'),
                     ),
@@ -843,8 +844,17 @@ class _ResultCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text("Zoning: ${result.zoning ?? '—'}", style: valueStyle),
           const SizedBox(height: 14),
-          if (opa.isNotEmpty)
+          if (opa.isNotEmpty) ...[
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              for (final item in [(0, '311 records'), (1, 'L&I records'), (2, 'Resale value'), (3, 'Signals')])
+                OutlinedButton(
+                  onPressed: () => showProComingSoonDialog(context,
+                    opa: opa, address: address, initialSection: item.$1),
+                  child: Text(item.$2),
+                ),
+            ]),
             ViolationSummaryCard(opa: opa, service: violationsService),
+          ],
           const SizedBox(height: 18),
           Row(
             children: [
