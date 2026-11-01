@@ -76,3 +76,5 @@ listing feed is connected; no listing check is claimed.
 The resale calculation remains an experimental sales benchmark with explicit assumptions;
 signals remain weak context when no direct selling-intent evidence exists. Do not present
 these as a fully validated pricing model or completed strong/medium seller prediction.
+
+Public app rule: paid records, resale and signals must stay locked until a successful verified Apple subscription purchase. Cancelled/failed/pending/unverified purchases do not unlock Pro. Server-verified entitlements, restore and expiry/revocation checks are required before paid release (issue #2). The debug convenience is never a production payment bypass.
