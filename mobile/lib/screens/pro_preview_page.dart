@@ -58,9 +58,14 @@ class ProPreviewPage extends StatelessWidget {
             subtitle: Text('Illustrative range and comparable-sales layout'),
             children: [
               ListTile(
-                title: Text(r'Sample resale range: $300,000–$330,000'),
+                title: Text('Sample value scenarios • fictional'),
                 subtitle: Text(
                   'Fictional layout example, not a calculated valuation.\n'
+                  'Unrenovated: \$200,000–\$230,000\n'
+                  'Partly renovated: \$250,000–\$280,000\n'
+                  'Fully renovated: \$300,000–\$330,000\n'
+                  'Live version: separate nearby sold comparables, sample count '
+                  'and condition evidence for each group.\n'
                   'Assumption: kitchen, bathroom and cosmetic upgrades; '
                   'no structural work. Condition is unverified.\n'
                   'Evidence quality: Not assessed • Live analysis unavailable.',
@@ -69,9 +74,11 @@ class ProPreviewPage extends StatelessWidget {
               ListTile(
                 title: Text('Fictional comparable sales'),
                 subtitle: Text(
-                  'Sample A • Sold September 2026 • \$310,000\n'
+                  'Sample A • Fully renovated (fictional assumption)\n'
+                  'Sold September 2026 • \$310,000\n'
                   '0.2 mi • Rowhome • 1,200 sq ft\n'
-                  'Sample B • Sold August 2026 • \$325,000\n'
+                  'Sample B • Partly renovated (fictional assumption)\n'
+                  'Sold August 2026 • \$265,000\n'
                   '0.3 mi • Rowhome • 1,250 sq ft\n'
                   'These are not actual transactions. Live analysis must show '
                   'verified sources, matching criteria and exclusions.',
