@@ -38,7 +38,7 @@ void main() {
     expect(find.text('Maintenance Complaint'), findsOneWidget);
     expect(find.text('Status: Closed'), findsOneWidget);
     await tester.scrollUntilVisible(find.text('Next'), 200,
-      scrollable: find.descendant(of: find.byType(ListView), matching: find.byType(Scrollable))); 
+      scrollable: find.descendant(of: find.byType(ListView), matching: find.byType(Scrollable)).first);
     await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
     expect(requests.last.queryParameters['offset'], '25');
