@@ -1,4 +1,4 @@
-PHILLY SCAN — OPEN IN XCODE
+PHILLY SCAN R2 — OPEN IN XCODE
 
 1. Unzip this download and keep everything together.
 2. Double-click Open_Philly_Scan.app inside this folder.
@@ -7,7 +7,11 @@ PHILLY SCAN — OPEN IN XCODE
 3. In Xcode, choose Runner and your iPhone simulator, then click the Run triangle.
 
 No Terminal commands. The debug Pro preview uses staging and requires no purchase.
-Scan a property, then open 311 records, L&I records, Resale value or Signals.
+Look for LIVE DATA TEST • R2 on the home screen. Enter the property address and click
+Open Pro • Live data. It scans if needed and opens all four features in one overview.
+311 and L&I open real records; resale shows a sales-based range with assumptions;
+signals show the actual evidence and rule. Market status stays Unknown until listing
+data is connected. Free access is limited to Debug test builds, not the public app.
 
 If macOS blocks the unsigned helper, use Finder's right-click > Open. If it remains
 blocked, send the exact dialog to ChatGPT; do not disable your Mac security settings.
