@@ -39,7 +39,32 @@ reads are not retried automatically. Editing invalidates in-flight UI updates.
 5. Turn off Wi-Fi/cellular. Scan, confirm a friendly failure and usable Scan action;
    reconnect and retry. Long requests must stop within 45 seconds.
 6. Verify enforcement failure leaves property facts available and offers Retry enforcement.
-7. Verify enforcement refreshes after switching properties; details remain Coming Soon.
+7. Verify enforcement refreshes after switching properties; details remain Coming Soon
+   unless the explicit debug Pro preview below is enabled.
+
+## No-payment Pro simulator preview (issue #5)
+
+From `mobile/` on your Mac, select your iOS simulator and run:
+
+```sh
+flutter run --debug --dart-define=APP_ENV=test --dart-define=PRO_PREVIEW=true
+```
+
+Tap **Upgrade to Pro** on the home screen (no scan needed), or tap
+**View enforcement details** after a successful scan. Expand the 311, open
+violation and renovation resale sections. No purchase, Apple login or payment
+service is used. All records/prices are clearly fictional UI examples; no sample
+is associated with a scanned property. Real data integrations and a defensible
+valuation method remain backlog work. This is not a valuation engine.
+
+Without the flag, the Coming Soon gate remains. Profile/release builds ignore
+the flag through `kDebugMode`; it never grants a backend entitlement. Do not
+replace real subscription verification with this preview. Validate both paths:
+
+```sh
+flutter test
+flutter test --dart-define=PRO_PREVIEW=true
+```
 
 These tests do not create an installable binary. Device/signing, purchase/restore,
 TestFlight and App Store validation remain separate release gates. Keep changes on
