@@ -34,8 +34,7 @@ Both property/enforcement use config/api_config.dart. APP_ENV=prod explicitly ta
 https://philly-backend-main.onrender.com; API_BASE_URL may override with an HTTPS origin.
 Defaults are TEST even for release. Reads have 45-second client deadlines.
 PRO_PREVIEW is debug-only; profile/release ignore the bypass. This is not a real
-entitlement or purchase implementation. The existing sample UI file is retained
-as unused design history and is no longer navigated to.
+entitlement or purchase implementation. The obsolete fictional sample screen has been removed.
 
 ## Checks
 
