@@ -62,4 +62,23 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     client.close(); api.close(); violations.close();
   });
+  testWidgets('an unavailable offscreen feature does not hide the live records', (tester) async {
+    final client = ApiClient(client: MockClient((r) async {
+      if (r.url.path.endsWith('/facts')) return http.Response('unavailable',503);
+      return http.Response(jsonEncode({'ok':true,'opa':'363258000',
+        'rows':[{'service_name':'Maintenance Complaint'}]}),200);
+    }));
+    await tester.pumpWidget(MaterialApp(home: ProOverviewPage(
+      opa:'363258000',address:'1539 S LAMBERT ST',client:client,
+    )));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(),isNull);
+    expect(find.text('1 public requests'),findsOneWidget);
+    await tester.scrollUntilVisible(find.text('This data is currently unavailable.'),200,
+      scrollable:find.descendant(of:find.byType(ListView),matching:find.byType(Scrollable)).first);
+    expect(find.text('Retry'),findsOneWidget);
+    expect(tester.takeException(),isNull);
+    await tester.pumpWidget(const SizedBox()); client.close();
+  });
+
 }
