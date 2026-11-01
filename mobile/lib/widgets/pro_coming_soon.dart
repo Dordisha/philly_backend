@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../config/pro_preview_config.dart';
+import '../screens/pro_preview_page.dart';
 
 Future<void> showProComingSoonDialog(
   BuildContext context, {
@@ -6,6 +8,12 @@ Future<void> showProComingSoonDialog(
   String message =
       "You can see the summary for free.\n\nDetailed case history and enforcement records will be available in the Pro version soon.",
 }) async {
+  if (ProPreviewConfig.enabled) {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (_) => const ProPreviewPage()),
+    );
+    return;
+  }
   return showDialog<void>(
     context: context,
     builder: (_) {
