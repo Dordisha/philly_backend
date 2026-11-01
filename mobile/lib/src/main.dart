@@ -12,6 +12,7 @@ import 'models/property_result.dart';
 // ✅ Violations
 import 'violations_service.dart';
 import '../widgets/violation_summary_card.dart';
+import '../widgets/pro_coming_soon.dart';
 
 /// ===============================
 /// APP DISPLAY AND FEEDBACK
@@ -635,6 +636,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     // ✅ Feedback banner
                     _feedbackBanner(),
+
+                    TextButton.icon(
+                      onPressed: () => showProComingSoonDialog(context),
+                      icon: const Icon(Icons.workspace_premium_outlined),
+                      label: const Text('Upgrade to Pro'),
+                    ),
 
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
