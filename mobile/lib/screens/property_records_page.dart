@@ -10,6 +10,41 @@ String recordValue(dynamic value) => value == null || value.toString().isEmpty
     : value.toString();
 String recordMoney(num value) => '\$${value.round().toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => ',')}';
 
+const _recordLabels = {
+  'service_request_id': '311 request ID', 'service_name': 'Request type',
+  'service_code': 'Service code', 'status': 'Status',
+  'requested_datetime': 'Reported', 'updated_datetime': 'Updated',
+  'closed_datetime': 'Closed', 'agency_responsible': 'Responsible agency',
+  'status_notes': 'Status notes', 'casenumber': 'Case number',
+  'casestatus': 'Case status', 'caseprioritydesc': 'Priority', 'casetype': 'Case type',
+  'casecreateddate': 'Case opened', 'casecompleteddate': 'Case completed',
+  'violationnumber': 'Violation number', 'violationstatus': 'Violation status',
+  'violationdate': 'Violation date', 'violationresolutiondate': 'Resolution date',
+  'violationresolutioncode': 'Resolution code', 'violationcode': 'Violation code',
+  'violationcodetitle': 'Violation title', 'parcel_number': 'OPA parcel ID',
+  'location': 'Address', 'sale_price': 'Recorded sale price', 'sale_date': 'Sale date',
+  'total_livable_area': 'Living area (sq ft)', 'total_area': 'Lot area (sq ft)',
+  'number_of_bedrooms': 'Bedrooms', 'number_of_bathrooms': 'Bathrooms',
+  'building_code_description_new': 'OPA building type', 'building_code_new': 'OPA building code',
+  'category_code': 'OPA category code', 'interior_condition': 'Interior condition (OPA code)',
+  'exterior_condition': 'Exterior condition (OPA code)', 'assessment_date': 'OPA record assessment date',
+  'distance_m': 'Distance from property', 'owner_1': 'Recorded owner',
+  'owner_2': 'Additional recorded owner', 'mailing_street': 'Owner mailing street',
+  'mailing_city_state': 'Owner mailing city/state', 'mailing_zip': 'Owner mailing ZIP',
+  'zip_code': 'ZIP', 'zipcode': 'ZIP', 'address': 'Reported address', 'unit': 'Unit',
+};
+String _fieldValue(String key, dynamic value) {
+  if (value == null) return 'Not recorded';
+  final n = num.tryParse('$value');
+  if (key == 'sale_price' && n != null) return recordMoney(n);
+  if (key == 'distance_m' && n != null) return '${n.round()} m / ${(n / 1609.344).toStringAsFixed(2)} mi';
+  if (key.contains('date') || key.endsWith('datetime')) {
+    final date = DateTime.tryParse('$value');
+    if (date != null) return date.toIso8601String().substring(0, 10);
+  }
+  return recordValue(value);
+}
+
 /// Descriptive sale benchmark, adjusted only by the owner's explicit assumption.
 /// No condition classification or learned seller predictions are performed.
 Map<String, double>? saleBenchmark(List<Map<String, dynamic>> rows, num? area) {
@@ -190,7 +225,7 @@ class _PropertyRecordsPageState extends State<PropertyRecordsPage> {
                 const SizedBox(height: 8),
                 ...row.entries.map((entry) => Padding(
                   padding: const EdgeInsets.symmetric(vertical: 3),
-                  child: SelectableText('${entry.key.replaceAll('_', ' ')}: ${recordValue(entry.value)}'),
+                  child: SelectableText('${_recordLabels[entry.key] ?? entry.key.replaceAll('_', ' ')}: ${_fieldValue(entry.key, entry.value)}'),
                 )),
                 if (row['parcel_number'] != null) TextButton(
                   onPressed: () => _open('https://property.phila.gov/?p=${Uri.encodeComponent('${row['parcel_number']}')}'),
