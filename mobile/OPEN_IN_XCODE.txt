@@ -1,0 +1,27 @@
+PHILLY SCAN — OPEN IN XCODE
+
+1. Unzip this download and keep everything together.
+2. Double-click Open_Philly_Scan.app inside this folder.
+   It prepares the local iOS dependencies and opens Runner.xcworkspace in Xcode.
+   The initial setup may take several minutes; an internet connection is needed.
+3. In Xcode, choose Runner and your iPhone simulator, then click the Run triangle.
+
+No Terminal commands. The debug Pro preview uses staging and requires no purchase.
+Scan a property, then open 311 records, L&I records, Resale value or Signals.
+
+If macOS blocks the unsigned helper, use Finder's right-click > Open. If it remains
+blocked, send the exact dialog to ChatGPT; do not disable your Mac security settings.
+
+The helper uses your EXISTING Flutter SDK and CocoaPods installations. If Flutter
+cannot be located, a Finder folder chooser asks for the installed Flutter SDK folder.
+No SDKs, Xcode runtimes, paid software or new hosting are installed by this helper.
+The helper does not create an iPhone 17 Pro Max simulator: that model/runtime must
+be available in Xcode. A project file cannot supply a missing Apple simulator runtime.
+
+The Xcode file itself is ios/Runner.xcworkspace. Keep the complete mobile folder;
+the workspace depends on its Flutter source, assets and generated local iOS files.
+
+This is an unsigned SOURCE PROJECT, not a compiled .app for iPhone or an .ipa.
+The source's tests passed previously, but this macOS helper has not been executed
+on a Mac here. Preparation failures show a dialog and a local setup log instead
+of asking you to enter shell commands.
