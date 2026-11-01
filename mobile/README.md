@@ -1,80 +1,65 @@
 # Philly Scan mobile — canonical Flutter source
 
-This directory is the proposed canonical mobile project, recovered from the owner's
-Archive.zip (Library libfile_2ff54f53d0ec81918347d8e9f5cc005e;
+Recovered from owner Archive.zip (Library libfile_2ff54f53d0ec81918347d8e9f5cc005e;
 SHA-256 5be8b2f81e068a0f55250aef21648238c22d95e2055654ed9dbacd17f3cc7402).
-The archive identifies Flutter 3.35.6 / Dart 3.9.2 and app 1.0.3+4.
-Generated caches, Pods, machine-specific paths, backups and IDE files are excluded.
-Bundle identifier and signing team are retained; no signing credentials are included.
-The backend remains at repository root. Do not merge to deploy a mobile preview.
+Flutter 3.35.6 / Dart 3.9.2; source version 1.0.3+4. Generated caches,
+Pods, machine paths and signing credentials are excluded. Backend is at repo root.
 
-## Build and validate
+## Run the live-data preview on your Mac
 
-Use Flutter 3.35.6. From this directory:
+Download the feature/mobile-reliability-foundation branch again; the earlier sample ZIP does not update itself.
+From the downloaded mobile/ directory:
 
 ```sh
 flutter pub get
-flutter analyze
-flutter test
-flutter run --dart-define=APP_ENV=test
-```
-
-Both lookup and enforcement use `lib/config/api_config.dart`. Default is TEST,
-including release builds, to prevent accidental production testing.
-TEST uses the existing free service https://philly-scan-repair-test.onrender.com.
-Production explicitly requires `--dart-define=APP_ENV=prod`.
-An optional `--dart-define=API_BASE_URL=https://host` overrides both services.
-HTTPS origins only; unknown environments fail at startup.
-A 45-second client deadline allows time for free staging cold starts; timed-out
-reads are not retried automatically. Editing invalidates in-flight UI updates.
-
-## Owner iPhone acceptance (requires macOS/Xcode and device signing)
-
-1. Run the TEST build on the iPhone. Scan City Hall by address and by OPA.
-   Confirm the property facts and enforcement summary load.
-2. Type quickly and backspace while suggestions load. Only current choices may appear.
-3. Enter an invalid address. No neighboring property may appear automatically.
-   Select an alternative only by tapping it.
-4. Begin a scan and immediately change the input. The old result must not appear.
-5. Turn off Wi-Fi/cellular. Scan, confirm a friendly failure and usable Scan action;
-   reconnect and retry. Long requests must stop within 45 seconds.
-6. Verify enforcement failure leaves property facts available and offers Retry enforcement.
-7. Verify enforcement refreshes after switching properties; details remain Coming Soon
-   unless the explicit debug Pro preview below is enabled.
-
-## No-payment Pro simulator preview (issue #5)
-
-From `mobile/` on your Mac, select your iOS simulator and run:
-
-```sh
+open -a Simulator
 flutter run --debug --dart-define=APP_ENV=test --dart-define=PRO_PREVIEW=true
 ```
 
-Tap **Upgrade to Pro** on the home screen (no scan needed), or tap
-**View enforcement details** after a successful scan. Expand the 311, open
-violation and renovation resale sections. No purchase, Apple login or payment
-service is used. All records/prices are clearly fictional UI examples; no sample
-is associated with a scanned property. Real data integrations and a defensible
-valuation method remain backlog work. This is not a valuation engine.
+Scan a property, then tap **311 records**, **L&I records**, **Resale value** or
+**Signals** below its basic facts. Upgrade to Pro also opens the records after a
+property is scanned. No purchase or Apple login is needed. Home Upgrade without
+a property asks you to scan first. Existing enforcement details opens the L&I tab.
 
-Without the flag, the Coming Soon gate remains. Profile/release builds ignore
-the flag through `kDebugMode`; it never grants a backend entitlement. Do not
-replace real subscription verification with this preview. Validate both paths:
+- 311: public service requests at the exact published address and ZIP. No OPA field exists in this dataset. It may include shared-building/street requests and excludes private/unpublished records.
+- L&I: actual violation rows matched by parcel OPA; published case/violation statuses are preserved separately.
+- Resale: nearby OPA last-recorded sales, 800 m, last 24 months, same category/building code, floor area within 25%. View actual prices/dates/areas/distances and raw OPA condition codes.
+- Experimental resale range: price-per-sq-ft quartiles times subject size, using displayed-page sales >= $50,000 with valid size and at least three sales. User can select a condition scenario and explicitly adjust the assumed price by -30% to +50%. Condition selection itself adds no premium. Transaction type/renovation condition remain unverified; the interval is a benchmark, not a confidence interval/appraisal/profit calculation. Refreshing the next page changes the comparison sample.
+- Signals: separate transparent context rules using last recorded sale >=15 years and different published mailing street, each with underlying evidence/explanation. These yield at most weak evidence; no direct owner intentions, sale probability or acceptable offer price is invented.
+- Listing status stays Unknown until an authorized listing feed is connected.
+- Records are paginated (25 per page) with retry/source/retrieved date; raw missing values stay Not recorded. A failure does not become zero records.
+
+TEST uses existing free https://philly-scan-repair-test.onrender.com.
+Both property/enforcement use config/api_config.dart. APP_ENV=prod explicitly targets
+https://philly-backend-main.onrender.com; API_BASE_URL may override with an HTTPS origin.
+Defaults are TEST even for release. Reads have 45-second client deadlines.
+PRO_PREVIEW is debug-only; profile/release ignore the bypass. This is not a real
+entitlement or purchase implementation. The existing sample UI file is retained
+as unused design history and is no longer navigated to.
+
+## Checks
 
 ```sh
+flutter analyze
 flutter test
 flutter test --dart-define=PRO_PREVIEW=true
 ```
 
-These tests do not create an installable binary. Device/signing, purchase/restore,
-TestFlight and App Store validation remain separate release gates. Keep changes on
-this feature branch until owner testing and explicit release direction.
+Repo root: npm test. App source changes need a fresh local run; a backend redeploy
+does not update an already-built simulator client.
 
-## Next monetization gate
+## Owner acceptance
 
-Issue #2 requests paid enforcement details. In the later owner conversation, the
-owner accepted the recommendation of $2.99/month and $24.99/year. This replaces
-the earlier unspecified billing-period assumption, but does not authorize activating
-charges. No purchase products, entitlements, AI calls or notifications are added here.
-Next: design server-verified entitlement and sandbox purchase/restore before release.
-Android files are recovered scaffolding, not a verified Android release configuration.
+1. Scan City Hall and a residential property by address/OPA. Confirm property identity.
+2. Tap 311 and L&I and inspect actual IDs, dates and statuses; try Previous/Next.
+3. Open Resale value for a residential property; inspect each recorded sale, change
+   the scenario/price assumption, and check the estimated range changes.
+4. Open Signals: each factor must cite the underlying property data and its rule.
+5. Try no connectivity and retry. Switching tabs/properties must not show old records.
+6. Test quick input edits, invalid addresses and explicit suggestion selection.
+7. Normal build without PRO_PREVIEW must keep detail access gated.
+
+No signed binary, TestFlight upload or store submission is created by these tests.
+Keep draft until owner device testing and explicit production-release direction.
+Accepted planned prices: $2.99/month or $24.99/year. Charges inactive; real
+server-verified entitlement/purchase/restore validation remains a release gate.
