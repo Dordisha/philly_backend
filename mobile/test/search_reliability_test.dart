@@ -70,6 +70,11 @@ void main() {
       {'address': 'NEW RESULT'},
     ]);
     await tester.pump();
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).focusNode!.hasFocus,
+      isTrue,
+    );
+    await tester.pumpAndSettle();
     expect(find.text('NEW RESULT'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
     api.close();

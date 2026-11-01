@@ -74,6 +74,7 @@ class _HomeScreenState extends State<HomeScreen> {
   late final ViolationsService _violationsService;
   int _suggestionGeneration = 0;
   int _scanGeneration = 0;
+  late String _lastInputText;
 
   // ✅ Feedback banner (session-only dismiss)
   bool _showFeedbackBanner = true;
@@ -111,6 +112,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _api = widget.apiService ?? ApiService();
     _violationsService = widget.violationsService ?? ViolationsService();
+    _lastInputText = _controller.text;
     _controller.addListener(_onInputChanged);
     _focusNode.addListener(() {
       if (!_focusNode.hasFocus) {
@@ -150,6 +152,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _onInputChanged() {
+    // Cursor/composing changes must not invalidate a request for the same text.
+    if (_controller.text == _lastInputText) return;
+    _lastInputText = _controller.text;
     final q = _controller.text.trim();
     final generation = ++_suggestionGeneration;
     _scanGeneration++;
