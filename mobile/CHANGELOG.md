@@ -1,5 +1,7 @@
 ## 1.1.0-preview.8 (11)
 
+- Hide Schools from the feature menu; deferred to January 2027 data validation, otherwise drop it.
+
 - Connect reported crime trends to PPD CARTO data using exact OPA parcel coordinates.
 - Add selectable radii, equal 90-day comparisons, categories, 12 complete months and source limitations.
 - Backend deployment is required before the mobile feature can load from its configured server.

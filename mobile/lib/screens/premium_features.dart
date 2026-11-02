@@ -109,7 +109,6 @@ class FeatureMenu extends StatelessWidget {
       _grid(context, [
         ('Resale', Icons.trending_up, 2),
         ('Signals', Icons.bar_chart_outlined, 3),
-        ('Schools', Icons.school_outlined, null),
         ('Crime trends', Icons.shield_outlined, null),
       ]),
       const SizedBox(height: 10),
