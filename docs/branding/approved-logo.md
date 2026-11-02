@@ -7,5 +7,16 @@ Keep the Liberty Bell with crack, magnifying glass, Philadelphia skyline in the 
 PHILLY SCAN name, PROPERTY FACTS & INSIGHTS tagline and D.D. 2026 in the full seal.
 Use deep forest green, champagne gold accents and ivory. The simplified app icon keeps
 only the bell and magnifier. Do not use the entire presentation board as an app icon.
-Production icon exports and replacement of existing icons are a separate asset step;
-this commit records the approved identity without substituting the board for an icon.
+
+Applied in preview.7 (build 10): the approved simplified icon is exported to
+`mobile/assets/images/app-icon-green-gold.png` and every iOS AppIcon size.
+Opaque, square green background; iOS supplies the corner mask. The launcher
+generator now uses this dedicated master so it cannot restore the old black seal.
+The full in-app seal is unchanged by this app-icon correction.
+
+Asset extraction used the built-in image tool with the approved board as reference:
+“Extract only the simplified upper-right app icon; preserve ivory Liberty Bell,
+crack, gold magnifier and forest green; square edge-to-edge background; no text,
+board, labels or rounded external corners.” ImageMagick exports required sizes.
+
+In-app watermark: transparent green bell/gold magnifier, 4.5% opacity behind content, excluded from accessibility and touch handling. Generated from the same approved board with the instruction to extract the symbol onto transparency and use green for the bell.

@@ -1,3 +1,10 @@
+## 1.1.0-preview.7 (10)
+
+- Add a green/gold symbol and PHILLY SCAN wordmark to the home header.
+- Add subtle, non-interactive green/gold watermarks behind home, records and premium screens.
+- Apply the approved green/gold app icon to every iOS AppIcon size.
+- Preserve the dedicated icon master in launcher-generation configuration.
+
 # 1.1.0-preview.6 (9)
 
 - Record approved green/gold/ivory identity; production icon export pending.

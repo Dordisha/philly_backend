@@ -43,7 +43,7 @@ class FeatureMenu extends StatelessWidget {
       Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder: (_) => title == 'Zillow'
-              ? Scaffold(
+              ? BrandedScaffold(
                   appBar: AppBar(title: const Text('Check status')),
                   body: Padding(
                     padding: const EdgeInsets.all(20),
@@ -158,7 +158,7 @@ class PremiumFeaturePage extends StatelessWidget {
             'Incident map',
             'Sources & coverage',
           ];
-    return Scaffold(
+    return BrandedScaffold(
       appBar: AppBar(title: Text(title)),
       body: ListView(
         padding: const EdgeInsets.all(20),
@@ -181,7 +181,7 @@ class PremiumFeaturePage extends StatelessWidget {
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
-                    builder: (_) => Scaffold(
+                    builder: (_) => BrandedScaffold(
                       appBar: AppBar(title: Text(item)),
                       body: ListView(
                         padding: const EdgeInsets.all(20),

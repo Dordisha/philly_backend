@@ -13,7 +13,7 @@ class ProOverviewPage extends StatelessWidget {
     this.client,
   });
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) => BrandedScaffold(
     appBar: AppBar(title: const Text('Explore property')),
     body: ListView(
       padding: const EdgeInsets.all(20),

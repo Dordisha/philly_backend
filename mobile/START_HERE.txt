@@ -1,4 +1,4 @@
-PHILLY SCAN 1.1.0-preview.6 (9)
+PHILLY SCAN 1.1.0-preview.7 (10)
 
 This preview adds native iOS notification code. Keep your previous working project
 as a backup. Use the FULL source folder for this preview, not just the lib folder.
@@ -21,5 +21,5 @@ This source adds the update gate and notification plumbing; the existing live ba
 has not been deployed with it. No mandatory update is active and no push has been sent.
 Actual APNs testing needs Apple capability/provisioning, server secrets and a signed
 physical iPhone build. See ../docs/updates-and-announcements.md for setup.
-The approved green/gold logo is recorded; existing app icon assets are unchanged.
+The approved green/gold app icon is now installed in the iOS asset catalog.
 Schools, crime and AI answers are still not connected.

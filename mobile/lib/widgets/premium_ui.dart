@@ -133,3 +133,71 @@ class FeatureTile extends StatelessWidget {
     ),
   );
 }
+
+/// Decorative branding stays behind content and never intercepts gestures.
+class BrandedScaffold extends StatelessWidget {
+  const BrandedScaffold({super.key, this.appBar, required this.body});
+  final PreferredSizeWidget? appBar;
+  final Widget body;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: appBar,
+    body: Stack(
+      fit: StackFit.expand,
+      children: [
+        Positioned.fill(
+          child: IgnorePointer(
+            child: ExcludeSemantics(
+              child: Align(
+                alignment: const Alignment(0.7, 0.65),
+                child: FractionallySizedBox(
+                  widthFactor: 0.75,
+                  child: Image.asset(
+                    'assets/images/brand-watermark.png',
+                    opacity: const AlwaysStoppedAnimation<double>(0.045),
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        body,
+      ],
+    ),
+  );
+}
+
+class BrandWordmark extends StatelessWidget {
+  const BrandWordmark({super.key});
+  @override
+  Widget build(BuildContext context) => Semantics(
+    label: 'Philly Scan',
+    child: ExcludeSemantics(
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              'assets/images/brand-watermark.png',
+              width: 48,
+              height: 48,
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              'PHILLY SCAN',
+              style: TextStyle(
+                color: PremiumColors.green,
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}

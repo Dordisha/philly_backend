@@ -241,7 +241,7 @@ class _PropertyRecordsPageState extends State<PropertyRecordsPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) => BrandedScaffold(
     appBar: AppBar(title: const Text('Property records')),
     body: Column(
       children: [
@@ -444,7 +444,7 @@ class RecordDetailPage extends StatelessWidget {
     required this.retrieved,
   });
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) => BrandedScaffold(
     appBar: AppBar(title: const Text('Record details')),
     body: ListView(
       padding: const EdgeInsets.all(20),

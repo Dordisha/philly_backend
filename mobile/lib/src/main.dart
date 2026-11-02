@@ -26,7 +26,7 @@ import '../widgets/pro_coming_soon.dart';
 /// API configuration lives in config/api_config.dart.
 
 /// Source archive version; this preview does not create a store build.
-const String kAppVersion = "1.1.0-preview.6 (9)";
+const String kAppVersion = "1.1.0-preview.7 (10)";
 
 /// Support contact
 const String kFeedbackEmail = "dorian.dishani@gmail.com";
@@ -89,13 +89,6 @@ class _HomeScreenState extends State<HomeScreen> {
   int _suggestionGeneration = 0;
   int _scanGeneration = 0;
   late String _lastInputText;
-
-  static const _titleStyle = TextStyle(
-    fontSize: 34,
-    fontWeight: FontWeight.w500,
-    letterSpacing: 0.25,
-    height: 1.05,
-  );
 
   static const _subtitleStyle = TextStyle(
     fontSize: 15,
@@ -466,7 +459,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return BrandedScaffold(
       body: GestureDetector(
         behavior: HitTestBehavior.translucent,
         onTap: () => FocusScope.of(context).unfocus(),
@@ -479,9 +472,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const SizedBox(height: 16),
-                    const Center(
-                      child: Text("Philly Scan", style: _titleStyle),
-                    ),
+                    const Center(child: BrandWordmark()),
                     const SizedBox(height: 6),
                     const Center(
                       child: Text(
