@@ -22,7 +22,7 @@ import '../widgets/pro_coming_soon.dart';
 /// API configuration lives in config/api_config.dart.
 
 /// Source archive version; this preview does not create a store build.
-const String kAppVersion = "1.0.3 (4) • reliability preview";
+const String kAppVersion = "1.1.0-preview.2 (5)";
 
 /// Feedback destinations (NO backend required)
 const String kFeedbackFormUrl = "https://forms.gle/uiQnojGLdfNE94bV6";
@@ -652,7 +652,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     if (ProPreviewConfig.enabled) const Center(
-                      child: Text('LIVE DATA TEST • R2', style: TextStyle(color: Colors.greenAccent)),
+                      child: Text('LIVE DATA TEST • 1.1.0-preview.2', style: TextStyle(color: Colors.greenAccent)),
                     ),
                     const SizedBox(height: 18),
 
