@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../src/api_client.dart';
+import '../widgets/property_status_card.dart';
 import 'property_records_page.dart';
 
 /// One visible entry for each requested Pro feature; sections fail independently.
@@ -98,11 +99,7 @@ class _ProOverviewPageState extends State<ProOverviewPage> {
       Text(widget.address, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
       Text('OPA ${widget.opa} • Free test access'),
       const SizedBox(height: 12),
-      const Card(child: ListTile(
-        leading: Icon(Icons.storefront_outlined),
-        title: Text('Market status'),
-        subtitle: Text('Unknown — listing data is not connected. No active-listing check has been performed.'),
-      )),
+      PropertyStatusCard(address: widget.address),
       for (var i = 0; i < 4; i++) _card(i),
     ]),
   );

@@ -15,6 +15,7 @@ import 'models/property_result.dart';
 import 'violations_service.dart';
 import '../widgets/violation_summary_card.dart';
 import '../widgets/pro_coming_soon.dart';
+import '../widgets/property_status_card.dart';
 
 /// ===============================
 /// APP DISPLAY AND FEEDBACK
@@ -864,6 +865,8 @@ class _ResultCard extends StatelessWidget {
           Text("Market Value: ${money(result.marketValue)}", style: valueStyle),
           const SizedBox(height: 8),
           Text("Zoning: ${result.zoning ?? '—'}", style: valueStyle),
+          const SizedBox(height: 14),
+          PropertyStatusCard(address: address),
           const SizedBox(height: 14),
           if (opa.isNotEmpty) ...[
             Wrap(spacing: 8, runSpacing: 8, children: [
