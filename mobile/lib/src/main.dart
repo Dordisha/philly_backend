@@ -1,6 +1,8 @@
 // lib/src/main.dart
 import 'dart:async';
-import 'dart:ui';
+import '../widgets/premium_ui.dart';
+import '../widgets/update_notice.dart';
+import '../screens/premium_features.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -22,12 +24,9 @@ import '../widgets/pro_coming_soon.dart';
 /// API configuration lives in config/api_config.dart.
 
 /// Source archive version; this preview does not create a store build.
-const String kAppVersion = "1.1.0-preview.4 (7)";
+const String kAppVersion = "1.1.0-preview.5 (8)";
 
-/// Feedback destinations (NO backend required)
-const String kFeedbackFormUrl = "https://forms.gle/uiQnojGLdfNE94bV6";
-
-/// Optional: fallback email (kept, even if you mostly use the form)
+/// Support contact
 const String kFeedbackEmail = "dorian.dishani@gmail.com";
 
 void main() {
@@ -42,14 +41,19 @@ class PhillyScanApp extends StatelessWidget {
     return MaterialApp(
       title: 'Philly Scan',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(brightness: Brightness.dark, useMaterial3: true),
+      theme: premiumTheme(),
       home: const HomeScreen(),
     );
   }
 }
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, this.apiService, this.violationsService, this.recordsClient});
+  const HomeScreen({
+    super.key,
+    this.apiService,
+    this.violationsService,
+    this.recordsClient,
+  });
   final ApiService? apiService;
   final ViolationsService? violationsService;
   final ApiClient? recordsClient;
@@ -80,9 +84,6 @@ class _HomeScreenState extends State<HomeScreen> {
   int _scanGeneration = 0;
   late String _lastInputText;
 
-  // ✅ Feedback banner (session-only dismiss)
-  bool _showFeedbackBanner = true;
-
   static const _titleStyle = TextStyle(
     fontSize: 34,
     fontWeight: FontWeight.w500,
@@ -94,21 +95,21 @@ class _HomeScreenState extends State<HomeScreen> {
     fontSize: 15,
     fontWeight: FontWeight.w400,
     letterSpacing: 0.35,
-    color: Colors.white60,
+    color: PremiumColors.secondary,
   );
 
   static const _bodyStyle = TextStyle(
     fontSize: 15,
     fontWeight: FontWeight.w400,
     letterSpacing: 0.25,
-    color: Colors.white70,
+    color: PremiumColors.secondary,
   );
 
   static const _valueStyle = TextStyle(
     fontSize: 17,
     fontWeight: FontWeight.w500,
     letterSpacing: 0.25,
-    color: Colors.white,
+    color: PremiumColors.ink,
   );
 
   @override
@@ -271,8 +272,12 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted || _result == null) return;
     }
     if (!mounted) return;
-    await showProComingSoonDialog(context, opa: _result?.opa,
-      address: _result?.address ?? '', recordsClient: widget.recordsClient);
+    await showProComingSoonDialog(
+      context,
+      opa: _result?.opa,
+      address: _result?.address ?? '',
+      recordsClient: widget.recordsClient,
+    );
   }
 
   void _applySuggestion(Map<String, dynamic> s) async {
@@ -304,169 +309,17 @@ class _HomeScreenState extends State<HomeScreen> {
     await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
   }
 
-  Future<void> _openFeedbackForm() async {
-    final url = kFeedbackFormUrl.trim();
-    if (url.isEmpty) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Feedback form URL not set yet.")),
-      );
-      return;
-    }
-    await _open(url);
-  }
-
   Future<void> _emailFeedback() async {
-    final to = kFeedbackEmail.trim();
-    if (to.isEmpty) return;
-
-    final subject = Uri.encodeComponent("Philly Scan Feedback (v$kAppVersion)");
-    final body = Uri.encodeComponent(
-      "Quick feedback:\n\n"
-      "What worked:\n- \n\n"
-      "What didn’t:\n- \n\n"
-      "Suggestion:\n- \n\n"
-      "App Version: $kAppVersion\n"
-      "Backend: TEST (Render)\n",
+    final uri = Uri(
+      scheme: 'mailto',
+      path: kFeedbackEmail,
+      queryParameters: {'subject': 'Philly Scan $kAppVersion'},
     );
-
-    final mailto = "mailto:$to?subject=$subject&body=$body";
-    await launchUrl(Uri.parse(mailto), mode: LaunchMode.externalApplication);
-  }
-
-  void _showFeedbackOptions() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF12111A),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-      ),
-      builder: (_) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text(
-                  "Your Voice Matters",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                  "Help us improve Philly Scan.",
-                  style: TextStyle(color: Colors.white70, height: 1.25),
-                ),
-                const SizedBox(height: 14),
-                ElevatedButton(
-                  onPressed: () async {
-                    Navigator.pop(context);
-                    await _openFeedbackForm();
-                  },
-                  child: const Text("Open Feedback Form"),
-                ),
-                const SizedBox(height: 10),
-                OutlinedButton(
-                  onPressed: () async {
-                    Navigator.pop(context);
-                    await _emailFeedback();
-                  },
-                  child: const Text("Email Feedback"),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _feedbackBanner() {
-    if (!_showFeedbackBanner) return const SizedBox.shrink();
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        color: Colors.deepPurpleAccent.withOpacity(0.12),
-        border: Border.all(color: Colors.deepPurpleAccent.withOpacity(0.30)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.feedback_outlined, color: Colors.white70, size: 22),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Your Voice Matters",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  "Help us improve Philly Scan.",
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 13,
-                    height: 1.15,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                InkWell(
-                  onTap: _showFeedbackOptions,
-                  borderRadius: BorderRadius.circular(14),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
-                      color: Colors.white.withOpacity(0.06),
-                      border: Border.all(color: Colors.white10),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.edit_outlined,
-                          size: 18,
-                          color: Colors.white70,
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          "Share Feedback",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            onPressed: () => setState(() => _showFeedbackBanner = false),
-            icon: const Icon(Icons.close, color: Colors.white60, size: 18),
-          ),
-        ],
-      ),
-    );
+    try {
+      if (await launchUrl(uri)) return;
+    } catch (_) {}
+    if (!mounted) return;
+    await _copy(kFeedbackEmail, 'Support email copied');
   }
 
   Widget _suggestionsBox() {
@@ -477,15 +330,15 @@ class _HomeScreenState extends State<HomeScreen> {
       margin: const EdgeInsets.only(top: 8),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        color: const Color(0xFF12111A),
-        border: Border.all(color: Colors.deepPurpleAccent.withOpacity(0.35)),
+        color: const Color(0xFFFFFDFC),
+        border: Border.all(color: PremiumColors.green.withOpacity(0.35)),
       ),
       child: ListView.separated(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         itemCount: _suggestions.length,
         separatorBuilder: (_, __) =>
-            Divider(height: 1, color: Colors.white.withOpacity(0.06)),
+            Divider(height: 1, color: PremiumColors.line),
         itemBuilder: (context, i) {
           final s = _suggestions[i];
           final addr = (s['address'] ?? '').toString().trim();
@@ -499,7 +352,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   const Icon(
                     Icons.location_on_outlined,
                     size: 18,
-                    color: Colors.white70,
+                    color: PremiumColors.secondary,
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -510,12 +363,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: const TextStyle(
                         fontSize: 14.5,
                         fontWeight: FontWeight.w600,
-                        color: Colors.white,
+                        color: PremiumColors.ink,
                       ),
                     ),
                   ),
                   const SizedBox(width: 10),
-                  const Icon(Icons.chevron_right, color: Colors.white38),
+                  const Icon(
+                    Icons.chevron_right,
+                    color: PremiumColors.secondary,
+                  ),
                 ],
               ),
             ),
@@ -532,8 +388,8 @@ class _HomeScreenState extends State<HomeScreen> {
       margin: const EdgeInsets.only(top: 10),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(18),
-        color: Colors.white.withOpacity(0.04),
-        border: Border.all(color: Colors.white10),
+        color: PremiumColors.ink.withOpacity(0.04),
+        border: Border.all(color: PremiumColors.line),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -543,19 +399,19 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Text(
               "Suggestions",
               style: TextStyle(
-                color: Colors.white70,
+                color: PremiumColors.secondary,
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
               ),
             ),
           ),
-          Divider(height: 1, color: Colors.white.withOpacity(0.06)),
+          Divider(height: 1, color: PremiumColors.line),
           ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: _errorSuggestions.length,
             separatorBuilder: (_, __) =>
-                Divider(height: 1, color: Colors.white.withOpacity(0.06)),
+                Divider(height: 1, color: PremiumColors.line),
             itemBuilder: (context, i) {
               final s = _errorSuggestions[i];
               final addr = (s['address'] ?? '').toString().trim();
@@ -569,7 +425,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.search, size: 18, color: Colors.white60),
+                      const Icon(
+                        Icons.search,
+                        size: 18,
+                        color: PremiumColors.secondary,
+                      ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
@@ -579,11 +439,14 @@ class _HomeScreenState extends State<HomeScreen> {
                           style: const TextStyle(
                             fontSize: 14.5,
                             fontWeight: FontWeight.w600,
-                            color: Colors.white,
+                            color: PremiumColors.ink,
                           ),
                         ),
                       ),
-                      const Icon(Icons.chevron_right, color: Colors.white38),
+                      const Icon(
+                        Icons.chevron_right,
+                        color: PremiumColors.secondary,
+                      ),
                     ],
                   ),
                 ),
@@ -603,37 +466,6 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap: () => FocusScope.of(context).unfocus(),
         child: Stack(
           children: [
-            const DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  center: Alignment(0, -0.6),
-                  radius: 1.2,
-                  colors: [
-                    Color(0xFF1B1A23),
-                    Color(0xFF0F0E14),
-                    Color(0xFF0B0A10),
-                  ],
-                ),
-              ),
-              child: SizedBox.expand(),
-            ),
-            IgnorePointer(
-              child: Align(
-                alignment: const Alignment(0, 0.18),
-                child: Opacity(
-                  opacity: 0.075,
-                  child: ImageFiltered(
-                    imageFilter: ImageFilter.blur(sigmaX: 0.6, sigmaY: 0.6),
-                    child: Image.asset(
-                      'assets/images/finallogo.png',
-                      width: 420,
-                      height: 420,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                ),
-              ),
-            ),
             SafeArea(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(18),
@@ -651,18 +483,62 @@ class _HomeScreenState extends State<HomeScreen> {
                         style: _subtitleStyle,
                       ),
                     ),
-                    if (ProPreviewConfig.enabled) const Center(
-                      child: Text('LIVE DATA TEST • $kAppVersion', style: TextStyle(color: Colors.greenAccent)),
-                    ),
+                    if (ProPreviewConfig.enabled)
+                      const Center(
+                        child: Text(
+                          'LIVE DATA TEST • $kAppVersion',
+                          style: TextStyle(color: PremiumColors.green),
+                        ),
+                      ),
                     const SizedBox(height: 18),
 
-                    // ✅ Feedback banner
-                    _feedbackBanner(),
+                    const UpdateNotice(),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: IconButton(
+                        tooltip: 'Settings & updates',
+                        icon: const Icon(Icons.settings_outlined),
+                        onPressed: () => showModalBottomSheet<void>(
+                          context: context,
+                          isScrollControlled: true,
+                          builder: (_) => SafeArea(
+                            child: SingleChildScrollView(
+                              padding: const EdgeInsets.all(24),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  const Text(
+                                    'Philly Scan',
+                                    style: TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const Text(kAppVersion),
+                                  const SizedBox(height: 18),
+                                  const UpdateNotice(showControls: true),
+                                  TextButton.icon(
+                                    onPressed: _emailFeedback,
+                                    icon: const Icon(Icons.mail_outline),
+                                    label: const Text('Contact support'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
 
                     TextButton.icon(
                       onPressed: _loading ? null : _openPro,
                       icon: const Icon(Icons.workspace_premium_outlined),
-                      label: Text(ProPreviewConfig.enabled ? 'Open Pro • Live data' : 'Upgrade to Pro'),
+                      label: Text(
+                        ProPreviewConfig.enabled
+                            ? 'Open Pro • Live data'
+                            : 'Upgrade to Pro',
+                      ),
                     ),
 
                     Container(
@@ -670,10 +546,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: Colors.deepPurpleAccent,
+                          color: PremiumColors.green,
                           width: 2,
                         ),
-                        color: Colors.white.withOpacity(0.03),
+                        color: PremiumColors.paper,
                       ),
                       child: TextField(
                         controller: _controller,
@@ -697,7 +573,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: ElevatedButton(
                         onPressed: _loading ? null : () => _scan(),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white.withOpacity(0.06),
+                          backgroundColor: PremiumColors.line,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(18),
@@ -723,6 +599,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         bodyStyle: _bodyStyle,
                         valueStyle: _valueStyle,
                         violationsService: _violationsService,
+                        recordsClient: widget.recordsClient,
                       ),
                     ],
                   ],
@@ -757,7 +634,7 @@ class _ErrorCard extends StatelessWidget {
             child: Text(
               message,
               style: const TextStyle(
-                color: Colors.white,
+                color: PremiumColors.ink,
                 fontSize: 14.5,
                 fontWeight: FontWeight.w600,
               ),
@@ -778,6 +655,7 @@ class _ResultCard extends StatelessWidget {
   final TextStyle valueStyle;
 
   final ViolationsService violationsService;
+  final ApiClient? recordsClient;
 
   const _ResultCard({
     required this.result,
@@ -787,6 +665,7 @@ class _ResultCard extends StatelessWidget {
     required this.bodyStyle,
     required this.valueStyle,
     required this.violationsService,
+    this.recordsClient,
   });
 
   Widget _copyCard({
@@ -799,24 +678,25 @@ class _ResultCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         onTap: onTap,
         child: Container(
-          height: 86,
+          constraints: const BoxConstraints(minHeight: 94),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
-            color: Colors.white.withOpacity(0.05),
-            border: Border.all(color: Colors.white10),
+            color: PremiumColors.paper,
+            border: Border.all(color: PremiumColors.line),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 20, color: Colors.white70),
+              Icon(icon, size: 20, color: PremiumColors.secondary),
               const SizedBox(height: 12),
               Text(
                 title,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  fontSize: 16,
+                  fontSize: 13,
                   fontWeight: FontWeight.w700,
-                  color: Colors.white,
+                  color: PremiumColors.ink,
                 ),
               ),
             ],
@@ -836,16 +716,16 @@ class _ResultCard extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(22),
-        color: Colors.white.withOpacity(0.05),
-        border: Border.all(color: Colors.white10),
+        color: PremiumColors.paper,
+        border: Border.all(color: PremiumColors.line),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            address.toUpperCase(),
+            address,
             style: const TextStyle(
-              fontSize: 26,
+              fontSize: 23,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.45,
             ),
@@ -855,36 +735,30 @@ class _ResultCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text("OPA: $opa", style: bodyStyle),
           const SizedBox(height: 18),
-          Divider(color: Colors.white.withOpacity(0.10)),
+          Divider(color: PremiumColors.ink.withOpacity(0.10)),
           const SizedBox(height: 18),
-          Text("Sale Price: ${money(result.salePrice)}", style: valueStyle),
-          const SizedBox(height: 8),
-          Text("Sale Date: ${result.saleDate ?? '—'}", style: valueStyle),
-          const SizedBox(height: 12),
-          Text("Market Value: ${money(result.marketValue)}", style: valueStyle),
-          const SizedBox(height: 8),
-          Text("Zoning: ${result.zoning ?? '—'}", style: valueStyle),
-          const SizedBox(height: 14),
-          OutlinedButton.icon(
-            onPressed: () => showProComingSoonDialog(context,
-              opa: opa, address: address,
-              title: 'Check status',
-              message: 'Checking sale or rental status on Zillow is a Pro feature.'),
-            icon: const Icon(Icons.lock_outline),
-            label: const Text('Check status • Pro'),
+          LayoutBuilder(
+            builder: (context, constraints) => Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                for (final item in [
+                  ('Last recorded sale', money(result.salePrice)),
+                  ('Sale date', result.saleDate ?? '—'),
+                  ('City assessment', money(result.marketValue)),
+                  ('Zoning', zoningDescription(result.zoning)),
+                ])
+                  SizedBox(
+                    width: constraints.maxWidth < 280
+                        ? constraints.maxWidth
+                        : (constraints.maxWidth - 10) / 2,
+                    child: FactBox(label: item.$1, value: item.$2),
+                  ),
+              ],
+            ),
           ),
-          const SizedBox(height: 14),
-          if (opa.isNotEmpty) ...[
-            Wrap(spacing: 8, runSpacing: 8, children: [
-              for (final item in [(0, '311 records'), (1, 'L&I records'), (2, 'Resale value'), (3, 'Signals')])
-                OutlinedButton(
-                  onPressed: () => showProComingSoonDialog(context,
-                    opa: opa, address: address, initialSection: item.$1),
-                  child: Text(item.$2),
-                ),
-            ]),
+          if (opa.isNotEmpty)
             ViolationSummaryCard(opa: opa, service: violationsService),
-          ],
           const SizedBox(height: 18),
           Row(
             children: [
@@ -918,8 +792,8 @@ class _ResultCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(18),
-                color: Colors.white.withOpacity(0.05),
-                border: Border.all(color: Colors.white10),
+                color: PremiumColors.paper,
+                border: Border.all(color: PremiumColors.line),
               ),
               child: Row(
                 children: [
@@ -932,22 +806,31 @@ class _ResultCard extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w700,
-                            color: Colors.white,
+                            color: PremiumColors.ink,
                           ),
                         ),
                         SizedBox(height: 6),
                         Text(
                           "Opens the official City of Philadelphia tax portal",
-                          style: TextStyle(fontSize: 13, color: Colors.white60),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: PremiumColors.secondary,
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  Icon(Icons.account_balance, size: 22, color: Colors.white54),
+                  Icon(
+                    Icons.account_balance,
+                    size: 22,
+                    color: PremiumColors.secondary,
+                  ),
                 ],
               ),
             ),
           ),
+          const SizedBox(height: 20),
+          FeatureMenu(opa: opa, address: address, client: recordsClient),
         ],
       ),
     );

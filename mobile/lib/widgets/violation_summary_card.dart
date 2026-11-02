@@ -1,3 +1,4 @@
+import 'premium_ui.dart';
 import 'package:flutter/material.dart';
 
 import '../src/violations_service.dart';
@@ -62,7 +63,7 @@ class _ViolationSummaryCardState extends State<ViolationSummaryCard> {
                 SizedBox(width: 10),
                 Text(
                   "Loading violations…",
-                  style: TextStyle(color: Colors.white70),
+                  style: TextStyle(color: PremiumColors.secondary),
                 ),
               ],
             ),
@@ -95,7 +96,7 @@ class _ViolationSummaryCardState extends State<ViolationSummaryCard> {
                 const Text(
                   "Property Condition & Enforcement",
                   style: TextStyle(
-                    color: Colors.white,
+                    color: PremiumColors.ink,
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                   ),
@@ -111,7 +112,7 @@ class _ViolationSummaryCardState extends State<ViolationSummaryCard> {
                       strong: s.activeCount > 0,
                     ),
                     _pill("History", s.historicalCount.toString()),
-                    _pill("Risk", s.riskLevel, strong: s.riskLevel != "Low"),
+
                     _pill("Last", _fmtDate(s.lastActivity)),
                   ],
                 ),
@@ -122,18 +123,19 @@ class _ViolationSummaryCardState extends State<ViolationSummaryCard> {
                   width: double.infinity,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1B1B1B),
-                      foregroundColor: Colors.white,
+                      backgroundColor: const Color(0xFFF0F3EF),
+                      foregroundColor: PremiumColors.ink,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      side: const BorderSide(color: Color(0xFF2A2A2A)),
+                      side: const BorderSide(color: Color(0xFFE1DED7)),
                     ),
                     onPressed: () async {
                       await showProComingSoonDialog(
                         context,
-                        opa: widget.opa, initialSection: 1,
+                        opa: widget.opa,
+                        initialSection: 1,
                         title: "Enforcement Details",
                         message:
                             "You can see the summary for free.\n\nDetailed case history and enforcement records will be available in the Pro version soon.",
@@ -150,9 +152,9 @@ class _ViolationSummaryCardState extends State<ViolationSummaryCard> {
         return Container(
           margin: const EdgeInsets.only(top: 12),
           decoration: BoxDecoration(
-            color: const Color(0xFF0F0F0F),
+            color: const Color(0xFFFFFDFC),
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFF2A2A2A)),
+            border: Border.all(color: const Color(0xFFE1DED7)),
           ),
           child: body,
         );
@@ -169,8 +171,8 @@ class _ViolationSummaryCardState extends State<ViolationSummaryCard> {
 
     if (flags.isEmpty) {
       return const Text(
-        "No severity flags detected.",
-        style: TextStyle(color: Colors.white54),
+        "No flags reported in returned records.",
+        style: TextStyle(color: PremiumColors.secondary),
       );
     }
 
@@ -185,16 +187,16 @@ class _ViolationSummaryCardState extends State<ViolationSummaryCard> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: strong ? const Color(0xFF2A1A00) : const Color(0xFF161616),
+        color: strong ? const Color(0xFFFFEED9) : const Color(0xFFF4F2ED),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
-          color: strong ? const Color(0xFF8A5A00) : const Color(0xFF2A2A2A),
+          color: strong ? const Color(0xFF8A5A00) : const Color(0xFFE1DED7),
         ),
       ),
       child: Text(
         "$k: $v",
         style: TextStyle(
-          color: strong ? Colors.white : Colors.white70,
+          color: strong ? PremiumColors.ink : PremiumColors.secondary,
           fontSize: 12,
         ),
       ),
@@ -205,13 +207,13 @@ class _ViolationSummaryCardState extends State<ViolationSummaryCard> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: const Color(0xFF121212),
+        color: const Color(0xFFF4F2ED),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFF2A2A2A)),
+        border: Border.all(color: const Color(0xFFE1DED7)),
       ),
       child: Text(
         label,
-        style: const TextStyle(color: Colors.white70, fontSize: 12),
+        style: const TextStyle(color: PremiumColors.secondary, fontSize: 12),
       ),
     );
   }

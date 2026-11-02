@@ -1,31 +1,24 @@
-PHILLY SCAN 1.1.0-preview.4 (BUILD 7) — OPEN IN XCODE
+PHILLY SCAN 1.1.0-preview.5 (8) — SIMULATOR SOURCE
 
-1. Unzip this download and keep everything together.
-2. Double-click Open_Philly_Scan.app inside this folder.
-   It prepares the local iOS dependencies and opens Runner.xcworkspace in Xcode.
-   The initial setup may take several minutes; an internet connection is needed.
-3. In Xcode, choose Runner and your iPhone simulator, then click the Run triangle.
+If you already have a working local mobile project:
+1. Make a backup of that working folder.
+2. Replace ONLY its lib folder and pubspec.yaml with these versions.
+3. In that working mobile folder, run flutter pub get.
+4. Open ios/Runner.xcworkspace, choose Runner and an iPhone simulator, then Run.
+Keep the working ios folder, local generated configuration and Pods intact.
+No new Flutter plugin dependencies have been added.
 
-No Terminal commands. The debug Pro preview uses staging and requires no purchase.
-Look for LIVE DATA TEST • 1.1.0-preview.4 (7) on the home screen. Enter the property address and click
-Open Pro • Live data. It scans if needed and opens all four features in one overview.
-311 and L&I open real records; resale shows a sales-based range with assumptions;
-signals show the actual evidence and rule. Check status • Pro opens a Zillow address search from the Pro overview;
-confirm the address and unit on Zillow yourself. Free access is limited to Debug test builds, not the public app.
+For a fresh checkout, first run in the mobile folder:
+  flutter pub get
+  flutter build ios --config-only --simulator --debug --dart-define=APP_ENV=test --dart-define=PRO_PREVIEW=true
+  cd ios
+  pod install
+  open Runner.xcworkspace
 
-If macOS blocks the unsigned helper, use Finder's right-click > Open. If it remains
-blocked, send the exact dialog to ChatGPT; do not disable your Mac security settings.
+Do not open the workspace before preparing a fresh checkout. Generated.xcconfig
+and CocoaPods support files must be generated on your Mac.
 
-The helper uses your EXISTING Flutter SDK and CocoaPods installations. If Flutter
-cannot be located, a Finder folder chooser asks for the installed Flutter SDK folder.
-No SDKs, Xcode runtimes, paid software or new hosting are installed by this helper.
-The helper does not create an iPhone 17 Pro Max simulator: that model/runtime must
-be available in Xcode. A project file cannot supply a missing Apple simulator runtime.
-
-The Xcode file itself is ios/Runner.xcworkspace. Keep the complete mobile folder;
-the workspace depends on its Flutter source, assets and generated local iOS files.
-
-This is an unsigned SOURCE PROJECT, not a compiled .app for iPhone or an .ipa.
-The source's tests passed previously, but this macOS helper has not been executed
-on a Mac here. Preparation failures show a dialog and a local setup log instead
-of asking you to enter shell commands.
+Debug permits test access without payment. Profile/release remain locked.
+Schools, crime and AI answers show explicit not-connected screens.
+Resale is a recorded-sales calculation; Signals use existing rules, not AI.
+Update notices check the US App Store. Remote push delivery is not configured.

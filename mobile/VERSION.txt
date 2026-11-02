@@ -1,5 +1,1 @@
-Philly Scan 1.1.0-preview.4
-Flutter/iOS version: 1.1.0
-Build: 7
-Date: 2026-11-02
-Source preview only; not an App Store/TestFlight release.
+1.1.0-preview.5 (8)
