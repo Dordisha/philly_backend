@@ -1,0 +1,89 @@
+#!/bin/bash
+# Finder launcher: prepares Flutter's local iOS files and opens the workspace.
+# Uses the user's existing Flutter/CocoaPods installations; installs no SDKs.
+set -Eeuo pipefail
+export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/.rbenv/shims:$HOME/.asdf/shims:$HOME/.pub-cache/bin:$PATH"
+export CI=true
+export COCOAPODS_DISABLE_STATS=true
+APP_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+PROJECT_DIR="$(cd "$APP_DIR/.." && pwd)"
+LOG_DIR="$HOME/Library/Logs/PhillyScan"
+mkdir -p "$LOG_DIR"
+LOG_FILE="$LOG_DIR/XcodeSetup.log"
+STAGE="Preparing the project"
+
+show_error() {
+  local message="$1"
+  /usr/bin/osascript - "$message" "$LOG_FILE" <<'APPLESCRIPT'
+on run argv
+  set dialogResult to display dialog (item 1 of argv) with title "Philly Scan setup" buttons {"Close", "Show setup log"} default button "Show setup log" with icon caution
+  if button returned of dialogResult is "Show setup log" then
+    tell application "Finder" to open (POSIX file (item 2 of argv))
+  end if
+end run
+APPLESCRIPT
+}
+failed() {
+  trap - ERR
+  show_error "$STAGE failed. The setup log contains the details. No Terminal commands are needed; send the error to Dorian's ChatGPT conversation."
+  exit 1
+}
+trap failed ERR
+
+if [ ! -f "$PROJECT_DIR/pubspec.yaml" ]; then
+  show_error "Keep Open_Philly_Scan.app inside the mobile folder, beside pubspec.yaml, then open it again."
+  exit 1
+fi
+printf 'Philly Scan Xcode preparation\nProject: %s\n' "$PROJECT_DIR" > "$LOG_FILE"
+/usr/bin/osascript -e 'display notification "Preparing your Xcode project. Xcode will open when ready; the first setup can take several minutes." with title "Philly Scan"' 2>/dev/null || true
+
+FLUTTER_BIN=""
+if command -v flutter >/dev/null 2>&1; then
+  FLUTTER_BIN="$(command -v flutter)"
+else
+  for sdk in "$HOME/development/flutter" "$HOME/Developer/flutter" "$HOME/dev/flutter" "$HOME/flutter" "$HOME/Documents/flutter" "/opt/homebrew/share/flutter"; do
+    if [ -x "$sdk/bin/flutter" ]; then FLUTTER_BIN="$sdk/bin/flutter"; break; fi
+  done
+fi
+# Reuse an existing project's local SDK location when available. Never source it.
+if [ -z "$FLUTTER_BIN" ]; then
+  for config in "$HOME/philly_scan_app/ios/Flutter/Generated.xcconfig" "$PROJECT_DIR/ios/Flutter/Generated.xcconfig"; do
+    if [ -f "$config" ]; then
+      sdk="$(sed -n 's/^FLUTTER_ROOT=//p' "$config" | head -n 1 | tr -d '\r')"
+      if [ -n "$sdk" ] && [ -x "$sdk/bin/flutter" ]; then FLUTTER_BIN="$sdk/bin/flutter"; break; fi
+    fi
+  done
+fi
+if [ -z "$FLUTTER_BIN" ]; then
+  if ! sdk="$(/usr/bin/osascript -e 'POSIX path of (choose folder with prompt "Select your existing Flutter SDK folder (the folder containing bin/flutter).")')"; then exit 0; fi
+  FLUTTER_BIN="${sdk%/}/bin/flutter"
+fi
+if [ ! -x "$FLUTTER_BIN" ]; then
+  show_error "Flutter was not found in the selected folder. Open the launcher again and select your Flutter SDK folder."
+  exit 1
+fi
+export PATH="$(dirname "$FLUTTER_BIN"):$PATH"
+# CocoaPods may have been installed by Ruby rather than Homebrew.
+if ! command -v pod >/dev/null 2>&1; then
+  for pod_bin in "$HOME"/.gem/ruby/*/bin/pod /opt/homebrew/lib/ruby/gems/*/bin/pod /usr/local/lib/ruby/gems/*/bin/pod; do
+    if [ -x "$pod_bin" ]; then export PATH="$(dirname "$pod_bin"):$PATH"; break; fi
+  done
+fi
+if ! command -v pod >/dev/null 2>&1; then
+  show_error "CocoaPods is not available to this launcher. No software was installed. Send this message to ChatGPT so the Mac setup can be corrected."
+  exit 1
+fi
+
+cd "$PROJECT_DIR"
+STAGE="Checking Xcode"
+/usr/bin/xcrun --find xcodebuild >> "$LOG_FILE" 2>&1
+STAGE="Preparing Flutter dependencies"
+"$FLUTTER_BIN" pub get >> "$LOG_FILE" 2>&1
+STAGE="Configuring the simulator preview"
+"$FLUTTER_BIN" build ios --config-only --simulator --debug \
+  --dart-define=APP_ENV=test --dart-define=PRO_PREVIEW=true >> "$LOG_FILE" 2>&1
+STAGE="Preparing iOS dependencies"
+(cd ios && pod install) >> "$LOG_FILE" 2>&1
+STAGE="Opening Xcode"
+/usr/bin/open -a Xcode "$PROJECT_DIR/ios/Runner.xcworkspace"
+/usr/bin/osascript -e 'display notification "Xcode is ready. Choose the Runner scheme and an iPhone simulator, then click Run. Pro preview is enabled without a purchase." with title "Philly Scan"' 2>/dev/null || true

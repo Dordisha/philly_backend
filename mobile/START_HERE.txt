@@ -1,0 +1,13 @@
+PHILLY SCAN — XCODE PROJECT
+
+Double-click OPEN_PHILLY_SCAN.xcworkspace in THIS folder.
+It is the actual Xcode workspace. There is no launcher .app in this package.
+Keep this entire folder together; the workspace depends on the source in ios/ and lib/.
+
+This fixes the previous error caused by opening Open_Philly_Scan.app in Xcode.
+It does not claim a verified Mac build. This Flutter source project still requires
+machine-local Flutter-generated configuration and CocoaPods dependencies; those
+cannot safely be copied from the Linux build environment into your Mac project.
+If Xcode shows a build error, send the exact error so it can be diagnosed.
+
+Source: R2 live-data preview. No changes to the app, production backend or payments.
