@@ -15,7 +15,6 @@ import 'models/property_result.dart';
 import 'violations_service.dart';
 import '../widgets/violation_summary_card.dart';
 import '../widgets/pro_coming_soon.dart';
-import '../widgets/property_status_card.dart';
 
 /// ===============================
 /// APP DISPLAY AND FEEDBACK
@@ -866,7 +865,14 @@ class _ResultCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text("Zoning: ${result.zoning ?? '—'}", style: valueStyle),
           const SizedBox(height: 14),
-          PropertyStatusCard(address: address),
+          OutlinedButton.icon(
+            onPressed: () => showProComingSoonDialog(context,
+              opa: opa, address: address,
+              title: 'Check status',
+              message: 'Checking sale or rental status on Zillow is a Pro feature.'),
+            icon: const Icon(Icons.lock_outline),
+            label: const Text('Check status • Pro'),
+          ),
           const SizedBox(height: 14),
           if (opa.isNotEmpty) ...[
             Wrap(spacing: 8, runSpacing: 8, children: [
