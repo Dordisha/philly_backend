@@ -2,7 +2,7 @@ name: philly_scan_app
 description: Philly Scan – Property Facts & Insights
 publish_to: "none"
 
-version: 1.1.0+8
+version: 1.1.0+11
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
@@ -23,9 +23,10 @@ flutter:
 
   assets:
     - assets/images/finallogo.png
+    - assets/images/brand-watermark.png
 
 flutter_icons:
   android: true
   ios: true
-  image_path: assets/images/finallogo.png
+  image_path: assets/images/app-icon-green-gold.png
   remove_alpha_ios: true

@@ -1,3 +1,4 @@
+import 'crime_trends_page.dart';
 import 'package:flutter/material.dart';
 import '../config/pro_preview_config.dart';
 import '../src/api_client.dart';
@@ -43,13 +44,15 @@ class FeatureMenu extends StatelessWidget {
       Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder: (_) => title == 'Zillow'
-              ? Scaffold(
+              ? BrandedScaffold(
                   appBar: AppBar(title: const Text('Check status')),
                   body: Padding(
                     padding: const EdgeInsets.all(20),
                     child: PropertyStatusCard(address: address),
                   ),
                 )
+              : title == 'Crime trends'
+              ? CrimeTrendsPage(opa: opa, address: address, client: client)
               : PremiumFeaturePage(title: title, address: address),
         ),
       );
@@ -106,7 +109,6 @@ class FeatureMenu extends StatelessWidget {
       _grid(context, [
         ('Resale', Icons.trending_up, 2),
         ('Signals', Icons.bar_chart_outlined, 3),
-        ('Schools', Icons.school_outlined, null),
         ('Crime trends', Icons.shield_outlined, null),
       ]),
       const SizedBox(height: 10),
@@ -158,7 +160,7 @@ class PremiumFeaturePage extends StatelessWidget {
             'Incident map',
             'Sources & coverage',
           ];
-    return Scaffold(
+    return BrandedScaffold(
       appBar: AppBar(title: Text(title)),
       body: ListView(
         padding: const EdgeInsets.all(20),
@@ -181,7 +183,7 @@ class PremiumFeaturePage extends StatelessWidget {
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
-                    builder: (_) => Scaffold(
+                    builder: (_) => BrandedScaffold(
                       appBar: AppBar(title: Text(item)),
                       body: ListView(
                         padding: const EdgeInsets.all(20),

@@ -140,7 +140,9 @@ void main() {
       violations.close();
     },
   );
-  testWidgets('unconnected AI screens disclose missing data', (tester) async {
+  testWidgets('schools stay hidden and AI questions disclose missing data', (
+    tester,
+  ) async {
     if (!ProPreviewConfig.enabled) return;
     await tester.pumpWidget(
       const MaterialApp(
@@ -149,7 +151,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
-      find.text('Schools'),
+      find.text('Ask AI'),
       200,
       scrollable: find
           .descendant(
@@ -158,12 +160,13 @@ void main() {
           )
           .first,
     );
-    await tester.tap(find.text('Schools'));
+    expect(find.text('Schools'), findsNothing);
+    await tester.tap(find.text('Ask AI'));
     await tester.pumpAndSettle();
-    expect(find.text('School data is not connected yet.'), findsOneWidget);
-    await tester.tap(find.text('School assignment'));
+    expect(find.text('AI answers are not available yet.'), findsOneWidget);
+    await tester.tap(find.text('What should I investigate first?'));
     await tester.pumpAndSettle();
-    expect(find.text('Not connected'), findsOneWidget);
+    expect(find.text('Your question'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

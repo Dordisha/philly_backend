@@ -1,3 +1,4 @@
+import '../widgets/premium_ui.dart';
 import 'package:flutter/material.dart';
 import '../src/api_client.dart';
 import 'premium_features.dart';
@@ -13,7 +14,7 @@ class ProOverviewPage extends StatelessWidget {
     this.client,
   });
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) => BrandedScaffold(
     appBar: AppBar(title: const Text('Explore property')),
     body: ListView(
       padding: const EdgeInsets.all(20),

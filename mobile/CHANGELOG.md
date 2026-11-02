@@ -1,3 +1,26 @@
+## 1.1.0-preview.8 (11)
+
+- Hide Schools from the feature menu; deferred to January 2027 data validation, otherwise drop it.
+
+- Connect reported crime trends to PPD CARTO data using exact OPA parcel coordinates.
+- Add selectable radii, equal 90-day comparisons, categories, 12 complete months and source limitations.
+- Backend deployment is required before the mobile feature can load from its configured server.
+
+## 1.1.0-preview.7 (10)
+
+- Add a green/gold symbol and PHILLY SCAN wordmark to the home header.
+- Add subtle, non-interactive green/gold watermarks behind home, records and premium screens.
+- Apply the approved green/gold app icon to every iOS AppIcon size.
+- Preserve the dedicated icon master in launcher-generation configuration.
+
+# 1.1.0-preview.6 (9)
+
+- Record approved green/gold/ivory identity; production icon export pending.
+- Server-controlled minimum version gate with App Store availability check.
+- Native iOS notification permission, Keychain installation identity and token registration.
+- Encrypted backend registration store, APNs transport and protected draft/preview/send CLI.
+- Sending disabled by default; no deployments or announcements.
+
 # 1.1.0-preview.5 (8)
 
 - Ivory/green theme, compact tier boxes and drill-through record details.
