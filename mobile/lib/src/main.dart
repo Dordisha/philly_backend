@@ -48,7 +48,12 @@ class PhillyScanApp extends StatelessWidget {
 }
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, this.apiService, this.violationsService, this.recordsClient});
+  const HomeScreen({
+    super.key,
+    this.apiService,
+    this.violationsService,
+    this.recordsClient,
+  });
   final ApiService? apiService;
   final ViolationsService? violationsService;
   final ApiClient? recordsClient;
@@ -78,7 +83,6 @@ class _HomeScreenState extends State<HomeScreen> {
   int _suggestionGeneration = 0;
   int _scanGeneration = 0;
   late String _lastInputText;
-
 
   static const _titleStyle = TextStyle(
     fontSize: 34,
@@ -268,8 +272,12 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted || _result == null) return;
     }
     if (!mounted) return;
-    await showProComingSoonDialog(context, opa: _result?.opa,
-      address: _result?.address ?? '', recordsClient: widget.recordsClient);
+    await showProComingSoonDialog(
+      context,
+      opa: _result?.opa,
+      address: _result?.address ?? '',
+      recordsClient: widget.recordsClient,
+    );
   }
 
   void _applySuggestion(Map<String, dynamic> s) async {
@@ -302,8 +310,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _emailFeedback() async {
-    final uri = Uri(scheme: 'mailto', path: kFeedbackEmail,
-      queryParameters: {'subject': 'Philly Scan $kAppVersion'});
+    final uri = Uri(
+      scheme: 'mailto',
+      path: kFeedbackEmail,
+      queryParameters: {'subject': 'Philly Scan $kAppVersion'},
+    );
     try {
       if (await launchUrl(uri)) return;
     } catch (_) {}
@@ -357,7 +368,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  const Icon(Icons.chevron_right, color: PremiumColors.secondary),
+                  const Icon(
+                    Icons.chevron_right,
+                    color: PremiumColors.secondary,
+                  ),
                 ],
               ),
             ),
@@ -411,7 +425,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.search, size: 18, color: PremiumColors.secondary),
+                      const Icon(
+                        Icons.search,
+                        size: 18,
+                        color: PremiumColors.secondary,
+                      ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
@@ -425,7 +443,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       ),
-                      const Icon(Icons.chevron_right, color: PremiumColors.secondary),
+                      const Icon(
+                        Icons.chevron_right,
+                        color: PremiumColors.secondary,
+                      ),
                     ],
                   ),
                 ),
@@ -462,20 +483,62 @@ class _HomeScreenState extends State<HomeScreen> {
                         style: _subtitleStyle,
                       ),
                     ),
-                    if (ProPreviewConfig.enabled) const Center(
-                      child: Text('LIVE DATA TEST • $kAppVersion', style: TextStyle(color: PremiumColors.green)),
-                    ),
+                    if (ProPreviewConfig.enabled)
+                      const Center(
+                        child: Text(
+                          'LIVE DATA TEST • $kAppVersion',
+                          style: TextStyle(color: PremiumColors.green),
+                        ),
+                      ),
                     const SizedBox(height: 18),
 
                     const UpdateNotice(),
-                    Align(alignment: Alignment.centerRight, child: TextButton.icon(
-                      onPressed: _emailFeedback, icon: const Icon(Icons.mail_outline, size: 18),
-                      label: const Text('Contact'))),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: IconButton(
+                        tooltip: 'Settings & updates',
+                        icon: const Icon(Icons.settings_outlined),
+                        onPressed: () => showModalBottomSheet<void>(
+                          context: context,
+                          isScrollControlled: true,
+                          builder: (_) => SafeArea(
+                            child: SingleChildScrollView(
+                              padding: const EdgeInsets.all(24),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  const Text(
+                                    'Philly Scan',
+                                    style: TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const Text(kAppVersion),
+                                  const SizedBox(height: 18),
+                                  const UpdateNotice(showControls: true),
+                                  TextButton.icon(
+                                    onPressed: _emailFeedback,
+                                    icon: const Icon(Icons.mail_outline),
+                                    label: const Text('Contact support'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
 
                     TextButton.icon(
                       onPressed: _loading ? null : _openPro,
                       icon: const Icon(Icons.workspace_premium_outlined),
-                      label: Text(ProPreviewConfig.enabled ? 'Open Pro • Live data' : 'Upgrade to Pro'),
+                      label: Text(
+                        ProPreviewConfig.enabled
+                            ? 'Open Pro • Live data'
+                            : 'Upgrade to Pro',
+                      ),
                     ),
 
                     Container(
@@ -674,16 +737,28 @@ class _ResultCard extends StatelessWidget {
           const SizedBox(height: 18),
           Divider(color: PremiumColors.ink.withOpacity(0.10)),
           const SizedBox(height: 18),
-          LayoutBuilder(builder: (context, constraints) => Wrap(spacing: 10, runSpacing: 10, children: [
-            for (final item in [
-              ('Last recorded sale', money(result.salePrice)),
-              ('Sale date', result.saleDate ?? '—'),
-              ('City assessment', money(result.marketValue)),
-              ('Zoning', zoningDescription(result.zoning)),
-            ]) SizedBox(width: constraints.maxWidth < 280 ? constraints.maxWidth : (constraints.maxWidth - 10) / 2,
-              child: FactBox(label: item.$1, value: item.$2)),
-          ])),
-          if (opa.isNotEmpty) ViolationSummaryCard(opa: opa, service: violationsService),
+          LayoutBuilder(
+            builder: (context, constraints) => Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                for (final item in [
+                  ('Last recorded sale', money(result.salePrice)),
+                  ('Sale date', result.saleDate ?? '—'),
+                  ('City assessment', money(result.marketValue)),
+                  ('Zoning', zoningDescription(result.zoning)),
+                ])
+                  SizedBox(
+                    width: constraints.maxWidth < 280
+                        ? constraints.maxWidth
+                        : (constraints.maxWidth - 10) / 2,
+                    child: FactBox(label: item.$1, value: item.$2),
+                  ),
+              ],
+            ),
+          ),
+          if (opa.isNotEmpty)
+            ViolationSummaryCard(opa: opa, service: violationsService),
           const SizedBox(height: 18),
           Row(
             children: [
@@ -737,12 +812,19 @@ class _ResultCard extends StatelessWidget {
                         SizedBox(height: 6),
                         Text(
                           "Opens the official City of Philadelphia tax portal",
-                          style: TextStyle(fontSize: 13, color: PremiumColors.secondary),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: PremiumColors.secondary,
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  Icon(Icons.account_balance, size: 22, color: PremiumColors.secondary),
+                  Icon(
+                    Icons.account_balance,
+                    size: 22,
+                    color: PremiumColors.secondary,
+                  ),
                 ],
               ),
             ),

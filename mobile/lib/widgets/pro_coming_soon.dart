@@ -17,15 +17,23 @@ Future<void> showProComingSoonDialog(
 }) async {
   if (ProPreviewConfig.enabled && opa != null && opa.isNotEmpty) {
     await Navigator.of(context).push<void>(
-      MaterialPageRoute(builder: (_) => initialSection < 0
-        ? ProOverviewPage(opa: opa, address: address, client: recordsClient)
-        : PropertyRecordsPage(opa: opa, address: address, initialSection: initialSection, client: recordsClient)),
+      MaterialPageRoute(
+        builder: (_) => initialSection < 0
+            ? ProOverviewPage(opa: opa, address: address, client: recordsClient)
+            : PropertyRecordsPage(
+                opa: opa,
+                address: address,
+                initialSection: initialSection,
+                client: recordsClient,
+              ),
+      ),
     );
     return;
   }
   if (ProPreviewConfig.enabled) {
     title = 'Scan a property first';
-    message = 'Scan an address, then open 311 records, L&I records or Resale value beneath the property facts.';
+    message =
+        'Scan an address, then open 311 records, L&I records or Resale value beneath the property facts.';
   }
   return showDialog<void>(
     context: context,
@@ -38,11 +46,17 @@ Future<void> showProComingSoonDialog(
         actionsPadding: const EdgeInsets.fromLTRB(8, 6, 8, 10),
         title: Row(
           children: [
-            const Icon(Icons.lock_outline, color: PremiumColors.secondary, size: 20),
+            const Icon(
+              Icons.lock_outline,
+              color: PremiumColors.secondary,
+              size: 20,
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                ProPreviewConfig.enabled ? "Property records" : "Coming Soon – Pro Feature",
+                ProPreviewConfig.enabled
+                    ? "Property records"
+                    : "Coming Soon – Pro Feature",
                 style: TextStyle(
                   color: PremiumColors.ink,
                   fontWeight: FontWeight.w800,

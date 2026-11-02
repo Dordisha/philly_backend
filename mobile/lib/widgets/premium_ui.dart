@@ -13,18 +13,33 @@ ThemeData premiumTheme() => ThemeData(
   useMaterial3: true,
   brightness: Brightness.light,
   scaffoldBackgroundColor: PremiumColors.background,
-  colorScheme: ColorScheme.fromSeed(seedColor: PremiumColors.green,
-    primary: PremiumColors.green, surface: PremiumColors.paper,
-    onSurface: PremiumColors.ink),
-  appBarTheme: const AppBarTheme(backgroundColor: PremiumColors.background,
-    foregroundColor: PremiumColors.ink, centerTitle: true, elevation: 0),
-  cardTheme: CardThemeData(elevation: 0, color: PremiumColors.paper,
+  colorScheme: ColorScheme.fromSeed(
+    seedColor: PremiumColors.green,
+    primary: PremiumColors.green,
+    surface: PremiumColors.paper,
+    onSurface: PremiumColors.ink,
+  ),
+  appBarTheme: const AppBarTheme(
+    backgroundColor: PremiumColors.background,
+    foregroundColor: PremiumColors.ink,
+    centerTitle: true,
+    elevation: 0,
+  ),
+  cardTheme: CardThemeData(
+    elevation: 0,
+    color: PremiumColors.paper,
     margin: const EdgeInsets.symmetric(vertical: 6),
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16),
-      side: const BorderSide(color: PremiumColors.line))),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(16),
+      side: const BorderSide(color: PremiumColors.line),
+    ),
+  ),
   dividerTheme: const DividerThemeData(color: PremiumColors.line),
-  inputDecorationTheme: const InputDecorationTheme(filled: true,
-    fillColor: PremiumColors.paper, border: OutlineInputBorder()),
+  inputDecorationTheme: const InputDecorationTheme(
+    filled: true,
+    fillColor: PremiumColors.paper,
+    border: OutlineInputBorder(),
+  ),
 );
 
 // Explicit supported labels only. Unknown districts retain the source code.
@@ -46,13 +61,25 @@ class FactBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(color: PremiumColors.paper,
-      border: Border.all(color: PremiumColors.line), borderRadius: BorderRadius.circular(13)),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label, style: const TextStyle(fontSize: 12, color: PremiumColors.secondary)),
-      const SizedBox(height: 7),
-      Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-    ]),
+    decoration: BoxDecoration(
+      color: PremiumColors.paper,
+      border: Border.all(color: PremiumColors.line),
+      borderRadius: BorderRadius.circular(13),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12, color: PremiumColors.secondary),
+        ),
+        const SizedBox(height: 7),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+      ],
+    ),
   );
 }
 
@@ -61,19 +88,48 @@ class FeatureTile extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
   final String? subtitle;
-  const FeatureTile({super.key, required this.title, required this.icon,
-    required this.onTap, this.subtitle});
+  const FeatureTile({
+    super.key,
+    required this.title,
+    required this.icon,
+    required this.onTap,
+    this.subtitle,
+  });
   @override
-  Widget build(BuildContext context) => Card(child: InkWell(
-    borderRadius: BorderRadius.circular(16), onTap: onTap,
-    child: Padding(padding: const EdgeInsets.all(16), child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [Icon(icon, size: 23, color: PremiumColors.green),
-          const Spacer(), const Icon(Icons.chevron_right, size: 18)]),
-        const SizedBox(height: 12),
-        Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-        if (subtitle != null) ...[const SizedBox(height: 5),
-          Text(subtitle!, style: const TextStyle(fontSize: 12, color: PremiumColors.secondary))],
-      ])),
-  ));
+  Widget build(BuildContext context) => Card(
+    child: InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 23, color: PremiumColors.green),
+                const Spacer(),
+                const Icon(Icons.chevron_right, size: 18),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            if (subtitle != null) ...[
+              const SizedBox(height: 5),
+              Text(
+                subtitle!,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: PremiumColors.secondary,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    ),
+  );
 }
