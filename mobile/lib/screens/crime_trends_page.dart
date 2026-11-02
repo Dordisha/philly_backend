@@ -29,10 +29,18 @@ class _CrimeTrendsPageState extends State<CrimeTrendsPage> {
   }
 
   void _load() {
-    _future = _client.get('/api/crime', {
-      'opa': widget.opa,
-      'radius_m': '$_radius',
-    });
+    _future = _fetch();
+  }
+
+  Future<Map<String, dynamic>> _fetch() async {
+    try {
+      return await _client.get('/api/crime', {
+        'opa': widget.opa,
+        'radius_m': '$_radius',
+      });
+    } on ApiException {
+      return {'ok': false};
+    }
   }
 
   @override
