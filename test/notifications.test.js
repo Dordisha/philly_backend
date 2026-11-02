@@ -58,3 +58,24 @@ test('device ownership, encrypted persistence, opt-out, environment isolation, a
   assert.equal(skipped.body.results.skipped,1);assert.equal(sent.length,1);
  }finally{await new Promise(r=>server.close(r));rmSync(folder,{recursive:true,force:true});}
 });
+
+test('registration and sending are disabled by default; malformed registration and stale APNs tokens',async()=>{
+ const folder=mkdtempSync(join(tmpdir(),'philly-push-')),store=new PushStore(join(folder,'push.json'),'a'.repeat(64));
+ const env={PUSH_ADMIN_TOKEN:'z'.repeat(40)};
+ const app=express();app.use(express.json());app.use(notificationRouter({env,suppliedStore:store,send:async()=>({status:410,reason:'Unregistered'})}));
+ const server=app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));
+ const base=`http://127.0.0.1:${server.address().port}`;
+ const req=async(path,method,body,headers={})=>{const r=await fetch(base+path,{method,headers:{'Content-Type':'application/json',...headers},body:JSON.stringify(body)});return {status:r.status,body:await r.json()};};
+ const id=randomUUID(),secret='b'.repeat(64),admin={Authorization:'Bearer '+env.PUSH_ADMIN_TOKEN};
+ try{
+  assert.equal((await req('/devices/'+id,'PUT',{},{})).status,503);
+  env.PUSH_REGISTRATION_ENABLED='true';
+  assert.equal((await req('/devices/'+id,'PUT',{token:'bad'}, {'X-Installation-Secret':secret})).status,400);
+  await req('/devices/'+id,'PUT',{token:'f'.repeat(64),environment:'sandbox',version:'1.1.0'},{'X-Installation-Secret':secret});
+  const draft=await req('/admin/announcements','POST',{title:'Update',body:'Test only',environment:'sandbox'},admin);
+  assert.equal((await req(`/admin/announcements/${draft.body.id}/send`,'POST',{confirm:draft.body.id},admin)).status,503);
+  env.PUSH_SENDING_ENABLED='true';
+  const sent=await req(`/admin/announcements/${draft.body.id}/send`,'POST',{confirm:draft.body.id},admin);
+  assert.equal(sent.body.results.rejected,1);assert.equal(store.data.devices[id],undefined);
+ }finally{await new Promise(r=>server.close(r));rmSync(folder,{recursive:true,force:true});}
+});

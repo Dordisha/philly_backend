@@ -1,7 +1,7 @@
 import express from 'express';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { PushStore, digest } from '../services/pushStore.js';
-import { sendAPNs } from '../services/apns.js';
+import { sendAPNs, providerToken } from '../services/apns.js';
 import { versionParts } from '../services/appPolicy.js';
 
 const same=(a,b)=>typeof a==='string' && typeof b==='string' && a.length===b.length
@@ -69,6 +69,7 @@ export function notificationRouter({env=process.env, suppliedStore, send=sendAPN
     if(c.status!=='draft')return res.status(409).json({error:'Announcement already attempted; inspect results',...preview(c)});
     if(clock()-c.createdAt>3600000)return res.status(409).json({error:'Draft expired; create a fresh preview'});
     if(Object.keys(c.recipients).length>200)return res.status(409).json({error:'Audience exceeds synchronous sender limit (200). Use a queued sender before enabling larger announcements.'});
+    if(send===sendAPNs){try{providerToken(env);}catch{return res.status(503).json({error:'APNs credentials unavailable'});}}
     c.status='sending';store.save();
     for(const [id,r] of Object.entries(c.recipients)) {
       const d=store.data.devices[id];

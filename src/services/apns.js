@@ -1,5 +1,5 @@
 import http2 from 'node:http2';
-import { createPrivateKey, sign } from 'node:crypto';
+import { createPrivateKey, sign, createHash } from 'node:crypto';
 import { STORE_URL } from './appPolicy.js';
 export function providerToken(env=process.env, now=Math.floor(Date.now()/1000)) {
   if (!/^[A-Z0-9]{10}$/.test(env.APNS_KEY_ID||'') || !/^[A-Z0-9]{10}$/.test(env.APNS_TEAM_ID||'')) throw new Error('APNs identity missing');
@@ -9,10 +9,19 @@ export function providerToken(env=process.env, now=Math.floor(Date.now()/1000)) 
   if(key.asymmetricKeyType!=='ec' || key.asymmetricKeyDetails?.namedCurve!=='prime256v1') throw new Error('APNs requires P-256');
   return `${head}.${body}.`+sign('sha256',Buffer.from(`${head}.${body}`),{key,dsaEncoding:'ieee-p1363'}).toString('base64url');
 }
+let cachedToken;
+function cachedProviderToken(env) {
+  const identity=createHash('sha256').update([env.APNS_KEY_ID,env.APNS_TEAM_ID,env.APNS_PRIVATE_KEY].join(':')).digest('hex');
+  const now=Math.floor(Date.now()/1000);
+  if(!cachedToken || cachedToken.identity!==identity || now-cachedToken.created>=2700) {
+    cachedToken={identity,created:now,token:providerToken(env,now)};
+  }
+  return cachedToken.token;
+}
 export function sendAPNs(token, environment, campaign, env=process.env) {
   if(env.PUSH_SENDING_ENABLED!=='true') throw new Error('Sending disabled');
   if(!['sandbox','production'].includes(environment) || !/^[a-f0-9]{32,256}$/i.test(token)) throw new Error('Invalid device');
-  const jwt=providerToken(env);
+  const jwt=cachedProviderToken(env);
   const payload=JSON.stringify({aps:{alert:{title:campaign.title,body:campaign.body},sound:'default'},
     kind:'app_update',url:STORE_URL,campaignId:campaign.id});
   return new Promise((resolve,reject)=>{

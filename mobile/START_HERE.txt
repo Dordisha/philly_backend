@@ -1,26 +1,25 @@
-PHILLY SCAN 1.1.0-preview.6 (9) — SIMULATOR SOURCE
+PHILLY SCAN 1.1.0-preview.6 (9)
 
-If you already have a working local mobile project:
-1. Make a backup of that working folder.
-This preview includes native push changes; use the full source setup below for push testing.
-The source-only lib replacement approach below does NOT install the native push bridge.
-2. Replace ONLY its lib folder and pubspec.yaml with these versions.
-3. In that working mobile folder, run flutter pub get.
-4. Open ios/Runner.xcworkspace, choose Runner and an iPhone simulator, then Run.
-Keep the working ios folder, local generated configuration and Pods intact.
-No new Flutter plugin dependencies have been added.
+This preview adds native iOS notification code. Keep your previous working project
+as a backup. Use the FULL source folder for this preview, not just the lib folder.
 
-For a fresh checkout, first run in the mobile folder:
+Fresh checkout, in the mobile folder:
   flutter pub get
   flutter build ios --config-only --simulator --debug --dart-define=APP_ENV=test --dart-define=PRO_PREVIEW=true
   cd ios
   pod install
   open Runner.xcworkspace
 
-Do not open the workspace before preparing a fresh checkout. Generated.xcconfig
-and CocoaPods support files must be generated on your Mac.
+Choose Runner and an iPhone simulator, then Run. Do not open the workspace before
+preparing the generated configuration and Pods on your Mac.
 
-Debug permits test access without payment. Profile/release remain locked.
-Schools, crime and AI answers show explicit not-connected screens.
-Resale is a recorded-sales calculation; Signals use existing rules, not AI.
-Update notices check the US App Store. Remote push source is included; Apple credentials, persistent backend storage and deployment are not configured. See ../docs/updates-and-announcements.md.
+If a compiled simulator artifact is available, unzip it to Runner.app and drag it
+onto a running iPhone Simulator. It is not a Mac app; do not double-click it.
+
+Debug permits test access without payment. Profile/release stay locked.
+This source adds the update gate and notification plumbing; the existing live backend
+has not been deployed with it. No mandatory update is active and no push has been sent.
+Actual APNs testing needs Apple capability/provisioning, server secrets and a signed
+physical iPhone build. See ../docs/updates-and-announcements.md for setup.
+The approved green/gold logo is recorded; existing app icon assets are unchanged.
+Schools, crime and AI answers are still not connected.
