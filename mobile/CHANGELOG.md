@@ -1,3 +1,12 @@
+# 1.1.0-preview.5 (8)
+
+- Ivory/green theme, compact tier boxes and drill-through record details.
+- Free enforcement aggregates, copy actions and tax link retained.
+- Pro $2.99/month and AI Premium $9.99/month displayed; release purchases remain unavailable.
+- Schools, crime and AI question screens disclose unconnected services.
+- Optional App Store update notice with debug preview; no remote pushes configured.
+- iOS project, plugins, logo assets and setup helper unchanged. Fresh-checkout instructions corrected.
+
 # Philly Scan source previews
 
 ## 1.1.0-preview.4 — build 7 — 2026-11-02

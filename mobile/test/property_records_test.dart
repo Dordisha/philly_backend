@@ -36,7 +36,15 @@ void main() {
     )));
     await tester.pumpAndSettle();
     expect(find.text('Maintenance Complaint'), findsOneWidget);
-    expect(find.text('Status: Closed'), findsOneWidget);
+    expect(find.text('Closed'), findsOneWidget);
+    await tester.tap(find.text('Maintenance Complaint'));
+    await tester.pumpAndSettle();
+    expect(find.text('Record details'), findsOneWidget);
+    expect(find.text('123'), findsOneWidget);
+    expect(find.text('Status'), findsOneWidget);
+    expect(find.text('Closed'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('Next'), 200,
       scrollable: find.descendant(of: find.byType(ListView), matching: find.byType(Scrollable)).first);
     await tester.tap(find.text('Next'));

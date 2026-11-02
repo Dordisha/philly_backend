@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../src/api_client.dart';
+import '../widgets/premium_ui.dart';
 
 const recordSections = ['311', 'violations', 'sales', 'facts'];
 const recordTitles = ['311 records', 'L&I records', 'Resale value', 'Signals'];
@@ -190,17 +191,22 @@ class _PropertyRecordsPageState extends State<PropertyRecordsPage> {
           final rows = (data['rows'] as List).cast<Map<String, dynamic>>();
           final source = (data['source'] as Map?) ?? {};
           return ListView(padding: const EdgeInsets.all(16), children: [
-            Text(recordValue(source['label'])),
-            Text('Retrieved: ${recordValue(data['retrieved_at'])}'),
-            if (source['url'] is String) TextButton(
-              onPressed: () => _open(source['url']), child: const Text('Official data source')),
-            Text(recordValue(data['note'])),
+            Card(child: ExpansionTile(title: const Text('Sources & dates'), children: [
+              Padding(padding: const EdgeInsets.all(16), child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(recordValue(source['label'])),
+                  Text('Retrieved: ${recordValue(data['retrieved_at'])}'),
+                  if (source['url'] is String) TextButton(
+                    onPressed: () => _open(source['url']), child: const Text('Official data source')),
+                  Text(recordValue(data['note'])),
+                ])),
+            ])),
             const SizedBox(height: 12),
             if (_section == 2) _estimate(data, rows),
             if (_section == 3 && data['signals'] is Map) ...[
               Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Selling signals: ${data['signals']['label']}',
+                  Text('Property signals: ${data['signals']['label']}',
                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   Text(recordValue(data['signals']['listing_status'])),
                   const SizedBox(height: 8),
@@ -218,19 +224,16 @@ class _PropertyRecordsPageState extends State<PropertyRecordsPage> {
             ],
             if (rows.isEmpty) const Padding(padding: EdgeInsets.all(16),
               child: Text('No published records matched these filters.')),
-            ...rows.map((row) => Card(child: Padding(padding: const EdgeInsets.all(14),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(recordValue(row['service_name'] ?? row['violationcodetitle'] ?? row['location']),
-                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                ...row.entries.map((entry) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 3),
-                  child: SelectableText('${_recordLabels[entry.key] ?? entry.key.replaceAll('_', ' ')}: ${_fieldValue(entry.key, entry.value)}'),
-                )),
-                if (row['parcel_number'] != null) TextButton(
-                  onPressed: () => _open('https://property.phila.gov/?p=${Uri.encodeComponent('${row['parcel_number']}')}'),
-                  child: const Text('Open official property record')),
-              ]),
+            if (_section < 2) FactBox(label: 'Loaded records · This page', value: '${rows.length}${data['has_more'] == true ? '+' : ''}'),
+            ...rows.map((row) => Card(child: ListTile(
+              contentPadding: const EdgeInsets.all(16),
+              title: Text(recordValue(row['service_name'] ?? row['violationcodetitle'] ?? row['location']),
+                style: const TextStyle(fontWeight: FontWeight.w600)),
+              subtitle: Text(recordValue(row['status'] ?? row['violationstatus'] ?? row['sale_date'])),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) =>
+                RecordDetailPage(row: row, address: widget.address, source: source,
+                  retrieved: recordValue(data['retrieved_at'])))),
             ))),
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
               TextButton(onPressed: _offset > 0 ? () => _reload(offset: _offset - 25) : null,
@@ -244,4 +247,31 @@ class _PropertyRecordsPageState extends State<PropertyRecordsPage> {
       )),
     ]),
   );
+}
+
+class RecordDetailPage extends StatelessWidget {
+  final Map<String, dynamic> row;
+  final Map source;
+  final String address;
+  final String retrieved;
+  const RecordDetailPage({super.key, required this.row, required this.address,
+    required this.source, required this.retrieved});
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Record details')),
+    body: ListView(padding: const EdgeInsets.all(20), children: [
+      Text(recordValue(row['service_name'] ?? row['violationcodetitle'] ?? row['location']),
+        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
+      const SizedBox(height: 8), Text(address), const SizedBox(height: 18),
+      LayoutBuilder(builder: (_, constraints) => Wrap(spacing: 10, runSpacing: 10,
+        children: row.entries.map((entry) => SizedBox(
+          width: constraints.maxWidth < 340 || '${entry.value}'.length > 50
+            ? constraints.maxWidth : (constraints.maxWidth - 10) / 2,
+          child: FactBox(label: _recordLabels[entry.key] ?? entry.key.replaceAll('_', ' '),
+            value: _fieldValue(entry.key, entry.value)),
+        )).toList())),
+      const SizedBox(height: 18),
+      FactBox(label: 'Source', value: recordValue(source['label'])),
+      const SizedBox(height: 8), Text('Retrieved: $retrieved'),
+    ]));
 }

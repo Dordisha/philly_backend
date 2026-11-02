@@ -1,13 +1,24 @@
-PHILLY SCAN — XCODE PROJECT
+PHILLY SCAN 1.1.0-preview.5 (8) — SIMULATOR SOURCE
 
-Double-click OPEN_PHILLY_SCAN.xcworkspace in THIS folder.
-It is the actual Xcode workspace. There is no launcher .app in this package.
-Keep this entire folder together; the workspace depends on the source in ios/ and lib/.
+If you already have a working local mobile project:
+1. Make a backup of that working folder.
+2. Replace ONLY its lib folder and pubspec.yaml with these versions.
+3. In that working mobile folder, run flutter pub get.
+4. Open ios/Runner.xcworkspace, choose Runner and an iPhone simulator, then Run.
+Keep the working ios folder, local generated configuration and Pods intact.
+No new Flutter plugin dependencies have been added.
 
-This fixes the previous error caused by opening Open_Philly_Scan.app in Xcode.
-It does not claim a verified Mac build. This Flutter source project still requires
-machine-local Flutter-generated configuration and CocoaPods dependencies; those
-cannot safely be copied from the Linux build environment into your Mac project.
-If Xcode shows a build error, send the exact error so it can be diagnosed.
+For a fresh checkout, first run in the mobile folder:
+  flutter pub get
+  flutter build ios --config-only --simulator --debug --dart-define=APP_ENV=test --dart-define=PRO_PREVIEW=true
+  cd ios
+  pod install
+  open Runner.xcworkspace
 
-Source: R2 live-data preview. No changes to the app, production backend or payments.
+Do not open the workspace before preparing a fresh checkout. Generated.xcconfig
+and CocoaPods support files must be generated on your Mac.
+
+Debug permits test access without payment. Profile/release remain locked.
+Schools, crime and AI answers show explicit not-connected screens.
+Resale is a recorded-sales calculation; Signals use existing rules, not AI.
+Update notices check the US App Store. Remote push delivery is not configured.

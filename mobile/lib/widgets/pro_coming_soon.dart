@@ -1,3 +1,4 @@
+import 'premium_ui.dart';
 import 'package:flutter/material.dart';
 import '../config/pro_preview_config.dart';
 import '../screens/property_records_page.dart';
@@ -30,20 +31,20 @@ Future<void> showProComingSoonDialog(
     context: context,
     builder: (_) {
       return AlertDialog(
-        backgroundColor: const Color(0xFF12111A),
+        backgroundColor: const Color(0xFFFFFDFC),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         titlePadding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
         contentPadding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
         actionsPadding: const EdgeInsets.fromLTRB(8, 6, 8, 10),
         title: Row(
           children: [
-            const Icon(Icons.lock_outline, color: Colors.white70, size: 20),
+            const Icon(Icons.lock_outline, color: PremiumColors.secondary, size: 20),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 ProPreviewConfig.enabled ? "Property records" : "Coming Soon – Pro Feature",
                 style: TextStyle(
-                  color: Colors.white,
+                  color: PremiumColors.ink,
                   fontWeight: FontWeight.w800,
                   fontSize: 16,
                 ),
@@ -52,9 +53,9 @@ Future<void> showProComingSoonDialog(
           ],
         ),
         content: Text(
-          "$title\n\n$message",
+          "$title\n\n$message${ProPreviewConfig.enabled ? '' : '\n\nPro: \$2.99/month · AI Premium: \$9.99/month. Subscriptions are not available in this preview.'}",
           style: const TextStyle(
-            color: Colors.white70,
+            color: PremiumColors.secondary,
             height: 1.25,
             fontSize: 13.5,
           ),
@@ -65,7 +66,7 @@ Future<void> showProComingSoonDialog(
             child: const Text(
               "Got it",
               style: TextStyle(
-                color: Colors.white,
+                color: PremiumColors.ink,
                 fontWeight: FontWeight.w700,
               ),
             ),

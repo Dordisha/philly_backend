@@ -45,40 +45,38 @@ void main() {
     await tester.pumpAndSettle();
     expect(api.scans,1);
     expect(find.byType(ProOverviewPage),findsOneWidget);
-    expect(seen.toSet(), {'/api/records/311','/api/records/violations','/api/records/sales','/api/records/facts'});
-    for (final label in ['View 311 records','View L&I records','Open resale analysis','View signal evidence']) {
+    expect(seen,isEmpty); // Fetch a section only when opened.
+    for (final label in ['311','L&I','Resale','Signals']) {
       final scroll = find.descendant(of:find.byType(ListView),matching:find.byType(Scrollable)).first;
       await tester.scrollUntilVisible(find.text(label), 200, scrollable:scroll);
       await tester.tap(find.text(label));
       await tester.pumpAndSettle();
       expect(find.text('Property records'),findsOneWidget);
-      if (label == 'View 311 records') expect(find.text('311 request ID: 15012021'),findsOneWidget);
-      if (label == 'View L&I records') expect(find.text('Violation number: 4170025'),findsOneWidget);
-      if (label == 'Open resale analysis') expect(find.text(r'$225,000 – $375,000'),findsOneWidget);
-      if (label == 'View signal evidence') expect(find.text('Selling signals: Weak evidence only'),findsOneWidget);
+      if (label == '311') expect(find.text('Maintenance Complaint'),findsOneWidget);
+      if (label == 'L&I') expect(find.text('CLIP VIOLATION NOTICE'),findsOneWidget);
+      if (label == 'Resale') expect(find.text(r'$225,000 – $375,000'),findsOneWidget);
+      if (label == 'Signals') expect(find.text('Property signals: Weak evidence only'),findsOneWidget);
       await tester.pageBack();
       await tester.pumpAndSettle();
     }
+    expect(seen.toSet(), {'/api/records/311','/api/records/violations','/api/records/sales','/api/records/facts'});
     await tester.pumpWidget(const SizedBox());
     client.close(); api.close(); violations.close();
   });
-  testWidgets('an unavailable offscreen feature does not hide the live records', (tester) async {
-    final client = ApiClient(client: MockClient((r) async {
-      if (r.url.path.endsWith('/facts')) return http.Response('unavailable',503);
-      return http.Response(jsonEncode({'ok':true,'opa':'363258000',
-        'rows':[{'service_name':'Maintenance Complaint'}]}),200);
-    }));
-    await tester.pumpWidget(MaterialApp(home: ProOverviewPage(
-      opa:'363258000',address:'1539 S LAMBERT ST',client:client,
+  testWidgets('unconnected AI screens disclose missing data', (tester) async {
+    if (!ProPreviewConfig.enabled) return;
+    await tester.pumpWidget(const MaterialApp(home: ProOverviewPage(
+      opa:'363258000',address:'1539 S LAMBERT ST',
     )));
     await tester.pumpAndSettle();
-    expect(tester.takeException(),isNull);
-    expect(find.text('1 public requests'),findsOneWidget);
-    await tester.scrollUntilVisible(find.text('This data is currently unavailable.'),200,
+    await tester.scrollUntilVisible(find.text('Schools'),200,
       scrollable:find.descendant(of:find.byType(ListView),matching:find.byType(Scrollable)).first);
-    expect(find.text('Retry'),findsOneWidget);
+    await tester.tap(find.text('Schools'));
+    await tester.pumpAndSettle();
+    expect(find.text('School data is not connected yet.'),findsOneWidget);
+    await tester.tap(find.text('School assignment'));
+    await tester.pumpAndSettle();
+    expect(find.text('Not connected'),findsOneWidget);
     expect(tester.takeException(),isNull);
-    await tester.pumpWidget(const SizedBox()); client.close();
   });
-
 }
