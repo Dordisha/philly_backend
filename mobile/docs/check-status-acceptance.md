@@ -13,7 +13,7 @@ No provider requests occur until the user taps. No listing status is inferred or
 4. A missing/multiple-match Zillow result does not label the property off-market in Philly Scan.
 5. A browser launch failure displays a retry message and keeps the property visible.
 6. Return from Zillow to the same property; scan another address and verify the outgoing search changes.
-7. Confirm the action is accessible from property results without Pro and also appears in the Pro overview.
+7. Confirm Check status • Pro on property results opens the Pro gate without launching Zillow for unpaid/release users. Debug preview can open the Pro overview. Verified paid entitlement access must be tested once billing (#2) is implemented.
 8. Inspect the card on a narrow iPhone screen and with larger text.
 
 These scenarios have not been executed on Xcode/iPhone. Zillow redirect behavior and exact-property resolution are not verified by Flutter analysis/tests.
