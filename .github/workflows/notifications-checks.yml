@@ -1,0 +1,21 @@
+name: Update and notification backend checks
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'test/**'
+      - 'tools/announcements.mjs'
+      - '.github/workflows/notifications-checks.yml'
+permissions:
+  contents: read
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm test

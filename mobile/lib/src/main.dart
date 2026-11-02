@@ -1,5 +1,7 @@
 // lib/src/main.dart
 import 'dart:async';
+import '../widgets/required_update_gate.dart';
+import '../widgets/notification_settings.dart';
 import '../widgets/premium_ui.dart';
 import '../widgets/update_notice.dart';
 import '../screens/premium_features.dart';
@@ -24,12 +26,14 @@ import '../widgets/pro_coming_soon.dart';
 /// API configuration lives in config/api_config.dart.
 
 /// Source archive version; this preview does not create a store build.
-const String kAppVersion = "1.1.0-preview.5 (8)";
+const String kAppVersion = "1.1.0-preview.6 (9)";
 
 /// Support contact
 const String kFeedbackEmail = "dorian.dishani@gmail.com";
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  NotificationCoordinator.instance.start();
   runApp(const PhillyScanApp());
 }
 
@@ -42,6 +46,8 @@ class PhillyScanApp extends StatelessWidget {
       title: 'Philly Scan',
       debugShowCheckedModeBanner: false,
       theme: premiumTheme(),
+      builder: (context, child) =>
+          RequiredUpdateGate(child: child ?? const SizedBox.shrink()),
       home: const HomeScreen(),
     );
   }
@@ -518,6 +524,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   const Text(kAppVersion),
                                   const SizedBox(height: 18),
                                   const UpdateNotice(showControls: true),
+                                  const NotificationSettings(),
                                   TextButton.icon(
                                     onPressed: _emailFeedback,
                                     icon: const Icon(Icons.mail_outline),

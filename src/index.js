@@ -11,6 +11,9 @@ import recordsRouter from "./routes/records.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+import { notificationRouter } from './routes/notifications.js';
+import { appPolicy } from './services/appPolicy.js';
+
 const app = express();
 
 const PORT = process.env.PORT || 3000;
@@ -18,7 +21,9 @@ const HOST = process.env.HOST || "0.0.0.0";
 
 console.log(`🚦 index.js loaded from: file://${__filename}`);
 
-app.use(express.json());
+app.use(express.json({limit:'8kb'}));
+app.get('/api/app-policy', (req,res) => { res.set('Cache-Control','no-store'); res.json(appPolicy()); });
+app.use('/api/notifications', notificationRouter());
 
 /* =========================
    BASIC HEALTH / ROOT

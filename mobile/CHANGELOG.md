@@ -1,3 +1,11 @@
+# 1.1.0-preview.6 (9)
+
+- Record approved green/gold/ivory identity; production icon export pending.
+- Server-controlled minimum version gate with App Store availability check.
+- Native iOS notification permission, Keychain installation identity and token registration.
+- Encrypted backend registration store, APNs transport and protected draft/preview/send CLI.
+- Sending disabled by default; no deployments or announcements.
+
 # 1.1.0-preview.5 (8)
 
 - Ivory/green theme, compact tier boxes and drill-through record details.

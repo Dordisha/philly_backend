@@ -1,7 +1,9 @@
-PHILLY SCAN 1.1.0-preview.5 (8) — SIMULATOR SOURCE
+PHILLY SCAN 1.1.0-preview.6 (9) — SIMULATOR SOURCE
 
 If you already have a working local mobile project:
 1. Make a backup of that working folder.
+This preview includes native push changes; use the full source setup below for push testing.
+The source-only lib replacement approach below does NOT install the native push bridge.
 2. Replace ONLY its lib folder and pubspec.yaml with these versions.
 3. In that working mobile folder, run flutter pub get.
 4. Open ios/Runner.xcworkspace, choose Runner and an iPhone simulator, then Run.
@@ -21,4 +23,4 @@ and CocoaPods support files must be generated on your Mac.
 Debug permits test access without payment. Profile/release remain locked.
 Schools, crime and AI answers show explicit not-connected screens.
 Resale is a recorded-sales calculation; Signals use existing rules, not AI.
-Update notices check the US App Store. Remote push delivery is not configured.
+Update notices check the US App Store. Remote push source is included; Apple credentials, persistent backend storage and deployment are not configured. See ../docs/updates-and-announcements.md.
