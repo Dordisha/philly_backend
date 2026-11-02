@@ -2,7 +2,7 @@ name: philly_scan_app
 description: Philly Scan – Property Facts & Insights
 publish_to: "none"
 
-version: 1.1.0+5
+version: 1.1.0+6
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
