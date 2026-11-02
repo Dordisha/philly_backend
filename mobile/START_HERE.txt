@@ -1,4 +1,4 @@
-PHILLY SCAN 1.1.0-preview.7 (10)
+PHILLY SCAN 1.1.0-preview.8 (11)
 
 This preview adds native iOS notification code. Keep your previous working project
 as a backup. Use the FULL source folder for this preview, not just the lib folder.
@@ -22,4 +22,4 @@ has not been deployed with it. No mandatory update is active and no push has bee
 Actual APNs testing needs Apple capability/provisioning, server secrets and a signed
 physical iPhone build. See ../docs/updates-and-announcements.md for setup.
 The approved green/gold app icon is now installed in the iOS asset catalog.
-Schools, crime and AI answers are still not connected.
+Crime trends now use the PPD API through the new backend route (deployment required). Schools and AI answers remain unconnected.

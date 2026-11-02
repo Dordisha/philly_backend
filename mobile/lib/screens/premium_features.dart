@@ -1,3 +1,4 @@
+import 'crime_trends_page.dart';
 import 'package:flutter/material.dart';
 import '../config/pro_preview_config.dart';
 import '../src/api_client.dart';
@@ -50,6 +51,8 @@ class FeatureMenu extends StatelessWidget {
                     child: PropertyStatusCard(address: address),
                   ),
                 )
+              : title == 'Crime trends'
+              ? CrimeTrendsPage(opa: opa, address: address, client: client)
               : PremiumFeaturePage(title: title, address: address),
         ),
       );

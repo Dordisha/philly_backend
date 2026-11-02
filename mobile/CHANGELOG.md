@@ -1,3 +1,9 @@
+## 1.1.0-preview.8 (11)
+
+- Connect reported crime trends to PPD CARTO data using exact OPA parcel coordinates.
+- Add selectable radii, equal 90-day comparisons, categories, 12 complete months and source limitations.
+- Backend deployment is required before the mobile feature can load from its configured server.
+
 ## 1.1.0-preview.7 (10)
 
 - Add a green/gold symbol and PHILLY SCAN wordmark to the home header.

@@ -1,3 +1,4 @@
+import crimeRouter from './routes/crime.js';
 // src/index.js
 import express from "express";
 import { fileURLToPath } from "url";
@@ -21,6 +22,7 @@ const HOST = process.env.HOST || "0.0.0.0";
 
 console.log(`🚦 index.js loaded from: file://${__filename}`);
 
+app.use('/api/crime', crimeRouter);
 app.use(express.json({limit:'8kb'}));
 app.get('/api/app-policy', (req,res) => { res.set('Cache-Control','no-store'); res.json(appPolicy()); });
 app.use('/api/notifications', notificationRouter());
