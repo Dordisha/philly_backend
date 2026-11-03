@@ -38,8 +38,11 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter build ios --simulator --debug --dart-define=APP_ENV=test --dart-define=PRO_PREVIEW=true
-      - run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphonesimulator/Runner.app PhillyScan-Simulator-preview.8.zip
-      - uses: actions/upload-artifact@v4
+      # Package only after release-gate review; PR compilation is not delivery.
+      - if: github.event_name == 'workflow_dispatch'
+        run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphonesimulator/Runner.app PhillyScan-Simulator-preview.8.zip
+      - if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
         with:
           name: PhillyScan-Simulator-preview.8
           path: mobile/PhillyScan-Simulator-preview.8.zip

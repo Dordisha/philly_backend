@@ -85,11 +85,19 @@ export function createRecordsRouter({ query = queryCarto, now = () => new Date()
         const properties = await query(propertyRecordSql(opa));
         if (!properties.length) return res.status(404).json({ ok: false, message: 'Property not found.' });
         const property = properties[0];
+        if (properties.length !== 1 || String(property.parcel_number ?? '').trim() !== opa) {
+          return res.status(503).json({ ok: false, message: 'Property identity could not be verified. Please retry.' });
+        }
         let rows;
         let provenance;
         let note;
         if (section === '311') {
-          if (!property.location || !property.zip_code) {
+          // 311 has no parcel/unit identifier. A base-building address cannot
+          // establish that a complaint belongs to the selected individual unit.
+          if (String(property.unit ?? '').trim()) {
+            return res.status(422).json({ ok: false, message: 'Unit-specific 311 matching is unavailable. Building-wide complaints cannot be assigned to this unit.' });
+          }
+          if (!property.location || !/^\d{5}(?:-\d{4})?$/.test(String(property.zip_code ?? '').trim())) {
             return res.status(422).json({ ok: false, message: 'Address matching is unavailable for this parcel.' });
           }
           rows = await query(complaintsSql(property, limit, offset));
