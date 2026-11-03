@@ -161,7 +161,11 @@ void main() {
           .first,
     );
     expect(find.text('Schools'), findsNothing);
-    await tester.tap(find.text('Ask AI'));
+    // The lazy list can build a tile before its tap target enters the viewport.
+    await tester.ensureVisible(find.text('Ask AI'));
+    await tester.pumpAndSettle();
+    expect(find.text('Ask AI').hitTestable(), findsOneWidget);
+    await tester.tap(find.text('Ask AI').hitTestable());
     await tester.pumpAndSettle();
     expect(find.text('AI answers are not available yet.'), findsOneWidget);
     await tester.tap(find.text('What should I investigate first?'));
