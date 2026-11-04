@@ -787,8 +787,19 @@ class _ResultCard extends StatelessWidget {
           InkWell(
             borderRadius: BorderRadius.circular(18),
             onTap: () async {
+              final names = result.ownerNames.isNotEmpty ? result.ownerNames : [owner];
+              String? selectedOwner = names.first;
+              if (names.length > 1) {
+                selectedOwner = await showDialog<String>(context: context, builder: (dialogContext) => SimpleDialog(
+                  title: const Text('Choose recorded owner'),
+                  children: [for (final name in names) SimpleDialogOption(
+                    onPressed: () => Navigator.pop(dialogContext, name), child: Text(name),
+                  )],
+                ));
+              }
+              if (selectedOwner == null || !context.mounted) return;
               final selected = await Navigator.of(context).push<String>(MaterialPageRoute(
-                builder: (_) => OwnerSearchPage(owner: owner, client: recordsClient),
+                builder: (_) => OwnerSearchPage(owner: selectedOwner!, client: recordsClient),
               ));
               if (selected != null && context.mounted) await selectOpa(selected);
             },
