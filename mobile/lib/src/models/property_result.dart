@@ -2,6 +2,7 @@ class PropertyResult {
   final String opa;
   final String address;
   final String? owner;
+  final List<String> ownerNames;
   final int? marketValue;
   final int? salePrice;
   final String? saleDate;
@@ -11,6 +12,7 @@ class PropertyResult {
     required this.opa,
     required this.address,
     this.owner,
+    this.ownerNames = const [],
     this.marketValue,
     this.salePrice,
     this.saleDate,
@@ -31,6 +33,7 @@ class PropertyResult {
       opa: (json['opa'] ?? '').toString().trim(),
       address: (json['address'] ?? '').toString().trim(),
       owner: (json['owner'] == null) ? null : json['owner'].toString().trim(),
+      ownerNames: (json['owner_names'] as List?)?.map((n) => n.toString().trim()).where((n) => n.isNotEmpty).toSet().toList() ?? const [],
       marketValue: _toInt(json['market_value']),
       salePrice: _toInt(json['sale_price']),
       saleDate: (json['sale_date'] == null)
