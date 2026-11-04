@@ -70,7 +70,7 @@ class _OwnerSearchPageState extends State<OwnerSearchPage> {
         const SizedBox(height: 16), Text(error!),
         if (denied) ...[
           FilledButton(onPressed: () => showDialog<void>(context: context, builder: (context) => AlertDialog(
-            title: const Text('Upgrade to Pro'), content: const Text('Pro is $2.99/month. Purchases are not available in this preview. Existing granted access can be verified with your private access code.'),
+            title: const Text('Upgrade to Pro'), content: const Text(r'Pro is $2.99/month. Purchases are not available in this preview. Existing granted access can be verified with your private access code.'),
             actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
           )), child: const Text('Upgrade')),
           TextButton(onPressed: enterAccess, child: const Text('I have granted access')),
