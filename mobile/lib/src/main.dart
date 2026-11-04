@@ -27,7 +27,7 @@ import '../widgets/pro_coming_soon.dart';
 /// API configuration lives in config/api_config.dart.
 
 /// Source archive version; this preview does not create a store build.
-const String kAppVersion = "1.1.0-preview.9 (12)";
+const String kAppVersion = "1.1.0-preview.10 (13)";
 
 /// Support contact
 const String kFeedbackEmail = "dorian.dishani@gmail.com";
@@ -799,7 +799,7 @@ class _ResultCard extends StatelessWidget {
               }
               if (selectedOwner == null || !context.mounted) return;
               final selected = await Navigator.of(context).push<String>(MaterialPageRoute(
-                builder: (_) => OwnerSearchPage(owner: selectedOwner!, client: recordsClient),
+                builder: (_) => OwnerSearchPage(owner: selectedOwner!, opa: opa, client: recordsClient),
               ));
               if (selected != null && context.mounted) await selectOpa(selected);
             },
