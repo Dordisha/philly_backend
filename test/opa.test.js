@@ -55,7 +55,7 @@ test("suggestions keep direction, exact house, range and explicit block fallback
 });
 test("mapping preserves all fields the Flutter client consumes", () => {
   assert.deepEqual(toProperty(row), {
-    opa: row.parcel_number, address: row.location, owner: row.owner_1,
+    opa: row.parcel_number, address: row.location, owner: row.owner_1, owner_names: [row.owner_1],
     market_value: 447100, sale_price: 395000, sale_date: "2020-03-17",
     zoning: "RSA5", tax: { lookup_url: "https://tax-services.phila.gov/_/" },
   });
