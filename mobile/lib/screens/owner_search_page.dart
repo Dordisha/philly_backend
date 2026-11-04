@@ -18,7 +18,10 @@ class _OwnerSearchPageState extends State<OwnerSearchPage> {
   bool loading = false, denied = false;
   String? error, cursor, note;
   @override
-  void initState() { super.initState(); load(); }
+  void initState() {
+    super.initState();
+    if (OwnerAccessSession.token == null) { denied = true; error = 'Pro subscription required.'; } else { load(); }
+  }
   @override
   void dispose() { if (widget.client == null) client.close(); super.dispose(); }
   Future<void> load() async {
