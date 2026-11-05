@@ -39,9 +39,11 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter build ios --simulator --debug --dart-define=APP_ENV=test --dart-define=PRO_PREVIEW=true
-      # Owner requested a simulator package for interactive testing.
-      - run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphonesimulator/Runner.app PhillyScan-Simulator-preview.10-full-test-access.zip
-      - uses: actions/upload-artifact@v4
+      # Packaging requires deliberate dispatch after delivery gates are reviewed.
+      - if: github.event_name == 'workflow_dispatch'
+        run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphonesimulator/Runner.app PhillyScan-Simulator-preview.10-full-test-access.zip
+      - if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
         with:
           name: PhillyScan-Simulator-preview.10-full-test-access
           path: mobile/PhillyScan-Simulator-preview.10-full-test-access.zip
