@@ -16,3 +16,6 @@ Test service https://philly-scan-repair-test.onrender.com; crime deployed separa
 Source baseline: 8ef884170540e5fc2a1051f50eca9434c9271b20 with private preview additions. Native signing/compilation and phone interaction are not verified in this Linux environment.
 
 Validation: Dart formatter and shell syntax checks passed. Flutter dependency setup was stopped by automatic approval review because it attempted cloud instance-metadata access. Flutter analysis/tests and native compilation were not completed. Run flutter analyze and flutter test on your Mac before archiving.
+
+## Pre-TestFlight update and AI announcement
+Home screen now includes a dismissible AI roadmap banner with resale insights, sourced explanations, agent conversation questions and later bilingual support. It makes no launch-date promise or current Pro entitlement claim. The existing App Store update notice remains in place. Remote push code exists but is NOT activated: Apple APNs credentials, durable private registration storage, provisioning and signed-device testing are still required. No notifications have been sent.

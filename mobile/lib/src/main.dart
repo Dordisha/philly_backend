@@ -1,3 +1,4 @@
+import '../widgets/ai_coming_soon_banner.dart';
 // lib/src/main.dart
 import 'dart:async';
 import '../screens/owner_search_page.dart';
@@ -557,6 +558,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 18),
 
                     const UpdateNotice(),
+                    const AiComingSoonBanner(),
                     Align(
                       alignment: Alignment.centerRight,
                       child: IconButton(
