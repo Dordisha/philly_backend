@@ -1,3 +1,4 @@
+import '../config/pro_preview_config.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../src/api_client.dart';
@@ -134,7 +135,9 @@ class _PropertyRecordsPageState extends State<PropertyRecordsPage> {
   void initState() {
     super.initState();
     _client = widget.client ?? ApiClient();
-    _section = widget.initialSection;
+    _section = ProPreviewConfig.enabled
+        ? widget.initialSection
+        : widget.initialSection.clamp(0, 1);
     _future = _load();
   }
 
@@ -253,7 +256,7 @@ class _PropertyRecordsPageState extends State<PropertyRecordsPage> {
           scrollDirection: Axis.horizontal,
           child: Row(
             children: List.generate(
-              recordTitles.length,
+              ProPreviewConfig.enabled ? recordTitles.length : 2,
               (i) => Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: ChoiceChip(

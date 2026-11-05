@@ -62,9 +62,9 @@ void main() {
         await tester.ensureVisible(find.text('Ask AI'));
         await tester.tap(find.text('Ask AI'));
         await tester.pumpAndSettle();
-        expect(find.text('Coming Soon – Pro Feature'), findsOneWidget);
+        expect(find.text('AI features are coming later'), findsOneWidget);
         expect(
-          find.textContaining('Subscriptions are not available'),
+          find.textContaining('not included in the current Pro'),
           findsOneWidget,
         );
       }

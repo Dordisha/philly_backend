@@ -6,7 +6,7 @@ import 'api_config.dart';
 /// Internal testing only; never grants a production subscription.
 abstract final class ProPreviewConfig {
   static const _debug =
-      kDebugMode && bool.fromEnvironment('PRO_PREVIEW', defaultValue: true);
+      kDebugMode && bool.fromEnvironment('PRO_PREVIEW', defaultValue: false);
   static const _internal = bool.fromEnvironment('INTERNAL_TESTING');
   static const _digest = String.fromEnvironment('TEST_ACCESS_SHA256');
   static bool _unlocked = false;

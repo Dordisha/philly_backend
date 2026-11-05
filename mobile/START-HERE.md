@@ -1,21 +1,39 @@
-# Philly Scan preview 11 — source handoff
+# Philly Scan Pro — purchase integration candidate (1.1.0 build 15)
 
-Two build paths from the same source. Requires Flutter 3.35.6, CocoaPods and Xcode on your Mac. Run `flutter doctor` first.
+This replaces the code-unlock preview with Apple subscriptions. It is SOURCE, not a signed IPA. Native compilation and StoreKit testing are not yet verified. Do not publish until the gates below pass.
 
-## Simulator
-Run `./RUN_SIMULATOR.command` from this folder. All implemented preview features are unlocked without a code. If multiple devices appear choose the iPhone simulator. Existing compiled Preview10 remains usable with the repaired crime backend.
+## Apple setup before running
+1. Open the EXISTING Philly Scan app in App Store Connect. Confirm its bundle ID is `com.dorian.phillyscan` (do not create a second app).
+2. Monetization → Subscriptions: create one subscription group for Philly Scan. Create **Philly Scan Pro**, product ID `com.dorian.phillyscan.pro.monthly`, auto-renewable, duration 1 month, US price $2.99. If a Pro product already exists with another ID, tell the developer before creating a duplicate: the ID must match AppDelegate.swift.
+3. Complete subscription localization, review information/screenshot, availability, and applicable paid-app agreement, tax and banking setup. Leave Billing Grace Period off for this first implementation; the app currently grants through verified expiration only.
+4. Publish the actual privacy policy and put its HTTPS URL into `release-settings.json`. The purchase button deliberately stays disabled without it. Standard Apple Terms of Use are linked in the paywall; use the same in the listing unless you have a custom EULA.
+5. Double-click PREPARE_TESTFLIGHT.command, select your correct Apple signing team in Xcode, select Any iOS Device, Archive, then upload via App Store Connect. Do NOT choose TestFlight Internal Only if you intend that uploaded build to be eligible for a later public release. Increment BUILD_NUMBER if 15 is already used.
+6. Assign the processed build to testers and install through TestFlight on a real iPhone. Apple sandbox purchases do not charge testers.
 
-## iPhone / internal TestFlight
-Run `./PREPARE_TESTFLIGHT.command` from this folder. This configures RELEASE compilation with the private test settings, then opens ios/Runner.xcworkspace. Do not open the .xcodeproj.
-In Xcode select the existing Philly Scan signing team (currently YBKAAF3GF2) and confirm bundle ID com.dorian.phillyscan matches your existing App Store Connect app. Select Any iOS Device, Product > Archive, then Distribute App > TestFlight Internal Only. This package is not a signed IPA and has not been uploaded. Apple account signing/processing is still required. If build14 already exists use `BUILD_NUMBER=15 ./PREPARE_TESTFLIGHT.command` (or another unused higher number).
-After Apple processes the build add it to your internal test group in the existing app; install using TestFlight. On the home screen choose Enter testing code and use PRIVATE-TEST-CODE.txt. Code unlock lasts for the running session; re-enter after restarting.
+## What this build does
+- Real StoreKit 2 checkout, Apple-verified current entitlements, restore, pending/cancelled handling, updates and expiration. iOS 15+ required for billing (older iOS shows unavailable).
+- No test code or automatic preview entitlement in the release runner.
+- Pro: detailed 311, L&I, Zillow links, exact recorded-owner search. Upcoming AI features stay unavailable to paid Pro. Descriptive crime trends remain visible separately while AI is deferred.
+- Owner search uses Philadelphia's public CARTO endpoint after on-device entitlement verification, retaining exact-name validation and pagination. It does not create a server grant. This protects app features, not the underlying public data/API. Any future private or costly server capability still requires server-side authentication and transaction verification.
+- Restores use the Apple Account; no Philly Scan account is required. Cancellation retains access until expiration. Refund/revocation updates remove access. No locally persisted entitlement toggle.
 
-## Scope and boundaries
-Test service https://philly-scan-repair-test.onrender.com; crime deployed separately at 415d19b. Full access means implemented preview features only, not unfinished AI or working purchases. The code is a local internal-build convenience, not a secure production subscription entitlement. Owner search uses live public OPA directly in preview. No production purchase bypass is installed. Keep the distribution INTERNAL ONLY: never submit this archive for public release. Normal builds without INTERNAL_TESTING cannot activate this code. Future production builds must be rebuilt from a clean configuration with APP_ENV=prod, PRO_PREVIEW=false, INTERNAL_TESTING=false and verified billing.
+## Critical release gate: server
+Current production `https://philly-backend-main.onrender.com` returns HTTP 404 for `/api/records/311?opa=363258000` (checked Nov 5). Therefore this candidate defaults to the working test service. DO NOT publicly release the test-service build.
+Before final release: merge/deploy the reviewed data repairs to production with owner approval, verify exact-address 311/L&I/crime on production, change APP_ENV to prod in release-settings.json, increment build number, then repeat TestFlight tests on THAT final binary before submitting it. An already-uploaded binary cannot have its API environment changed.
 
-Source baseline: 8ef884170540e5fc2a1051f50eca9434c9271b20 with private preview additions. Native signing/compilation and phone interaction are not verified in this Linux environment.
+## Proposed acceptance scenarios — owner review before execution
+1. Fresh install: Free summary works; every Pro entry point requires purchase.
+2. Apple monthly product displays localized price; subscription details, Privacy Policy, Terms and Restore are visible.
+3. Successful sandbox purchase unlocks all four Pro features for the correct property.
+4. Cancelled, pending, failed and unverified purchases do not unlock.
+5. Restore on reinstall/second device using same Apple Account restores active Pro; another account stays Free.
+6. Accelerated sandbox expiration/revocation removes access, including an already-open records page; turning off auto-renew retains access until expiry.
+7. Offline/store-unavailable/missing-product states show an actionable message and never simulate success.
+8. Pro does not unlock AI/Resale/Signals; public build has no testing-code UI.
+9. Production address/data regression checks pass on final build.
+10. Confirm signing, app ID, subscription product, privacy URLs and Apple review metadata.
 
-Validation: Dart formatter and shell syntax checks passed. Flutter dependency setup was stopped by automatic approval review because it attempted cloud instance-metadata access. Flutter analysis/tests and native compilation were not completed. Run flutter analyze and flutter test on your Mac before archiving.
+Suggested local commands after review: flutter analyze; flutter test --dart-define=PRO_PREVIEW=false; flutter test --dart-define=PRO_PREVIEW=true. Device StoreKit cases are separate and mandatory; unit tests cannot prove Apple checkout works.
 
-## Pre-TestFlight update and AI announcement
-Home screen now includes a dismissible AI roadmap banner with resale insights, sourced explanations, agent conversation questions and later bilingual support. It makes no launch-date promise or current Pro entitlement claim. The existing App Store update notice remains in place. Remote push code exists but is NOT activated: Apple APNs credentials, durable private registration storage, provisioning and signed-device testing are still required. No notifications have been sent.
+## Validation in this delivery
+Dart formatting/parser and shell syntax/diff checks only. Flutter setup in the prior session was blocked by automatic review because it contacted a cloud metadata endpoint. That setup was not retried or bypassed. No native Apple SDK is available here, so native compile, Flutter tests, and device purchase tests remain outstanding. This package is an integration candidate, not a claim of launch readiness.

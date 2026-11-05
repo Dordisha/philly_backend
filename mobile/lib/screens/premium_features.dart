@@ -1,3 +1,5 @@
+import '../widgets/pro_paywall.dart';
+import '../services/pro_subscription.dart';
 import 'crime_trends_page.dart';
 import 'package:flutter/material.dart';
 import '../config/pro_preview_config.dart';
@@ -17,43 +19,63 @@ class FeatureMenu extends StatelessWidget {
     this.client,
   });
 
-  void _open(BuildContext context, String title, {int? section}) {
-    if (!ProPreviewConfig.enabled || opa.isEmpty) {
-      showProComingSoonDialog(
-        context,
-        opa: opa,
-        address: address,
-        title: title,
-        message: section != null && section < 2 || title == 'Zillow'
-            ? 'Open detailed property records with Pro.'
-            : 'This feature belongs to AI Premium, including Pro.',
-        initialSection: section ?? -1,
-        recordsClient: client,
+  Future<void> _open(BuildContext context, String title, {int? section}) async {
+    final futureFeature =
+        (section != null && section >= 2) ||
+        title == 'Signals' ||
+        title == 'Resale' ||
+        title == 'Ask AI';
+    if (futureFeature && !ProPreviewConfig.enabled) {
+      await showDialog<void>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('AI features are coming later'),
+          content: const Text(
+            'This feature is not included in the current Pro subscription.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Got it'),
+            ),
+          ],
+        ),
       );
       return;
     }
-    if (section != null) {
-      showProComingSoonDialog(
+    if (title == 'Crime trends') {
+      if (opa.isNotEmpty)
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) =>
+                CrimeTrendsPage(opa: opa, address: address, client: client),
+          ),
+        );
+      return;
+    }
+    if (!await requirePro(context) || !context.mounted) return;
+    if (section != null || opa.isEmpty) {
+      await showProComingSoonDialog(
         context,
         opa: opa,
         address: address,
-        initialSection: section,
+        initialSection: section ?? -1,
         recordsClient: client,
       );
     } else {
-      Navigator.of(context).push(
+      await Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (_) => title == 'Zillow'
-              ? BrandedScaffold(
-                  appBar: AppBar(title: const Text('Check status')),
-                  body: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: PropertyStatusCard(address: address),
-                  ),
-                )
-              : title == 'Crime trends'
-              ? CrimeTrendsPage(opa: opa, address: address, client: client)
-              : PremiumFeaturePage(title: title, address: address),
+          builder: (_) => ProAccessGate(
+            child: title == 'Zillow'
+                ? BrandedScaffold(
+                    appBar: AppBar(title: const Text('Check status')),
+                    body: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: PropertyStatusCard(address: address),
+                    ),
+                  )
+                : PremiumFeaturePage(title: title, address: address),
+          ),
         ),
       );
     }
@@ -99,17 +121,23 @@ class FeatureMenu extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      _heading('Pro', '\$2.99 / month'),
+      _heading(
+        'Pro',
+        ProSubscription.instance.price == null
+            ? ''
+            : '${ProSubscription.instance.price} / month',
+      ),
       _grid(context, [
         ('311', Icons.notifications_none, 0),
         ('L&I', Icons.account_balance_outlined, 1),
         ('Zillow', Icons.home_outlined, null),
       ]),
-      _heading('AI Premium', '\$9.99 / month'),
+      _heading('Neighborhood data', ''),
+      _grid(context, [('Crime trends', Icons.shield_outlined, null)]),
+      _heading('Coming later', ''),
       _grid(context, [
         ('Resale', Icons.trending_up, 2),
         ('Signals', Icons.bar_chart_outlined, 3),
-        ('Crime trends', Icons.shield_outlined, null),
       ]),
       const SizedBox(height: 10),
       FilledButton.icon(
@@ -122,7 +150,7 @@ class FeatureMenu extends StatelessWidget {
       ),
       const SizedBox(height: 8),
       const Text(
-        'AI Premium includes Pro',
+        'Upcoming AI features are not included in Pro.',
         style: TextStyle(fontSize: 12, color: PremiumColors.secondary),
       ),
     ],
