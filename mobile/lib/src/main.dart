@@ -27,7 +27,7 @@ import '../widgets/pro_coming_soon.dart';
 /// API configuration lives in config/api_config.dart.
 
 /// Source archive version; this preview does not create a store build.
-const String kAppVersion = "1.1.0-preview.10 (13)";
+const String kAppVersion = "1.1.0-preview.11 (14)";
 
 /// Support contact
 const String kFeedbackEmail = "dorian.dishani@gmail.com";
@@ -481,6 +481,72 @@ class _HomeScreenState extends State<HomeScreen> {
                         style: _subtitleStyle,
                       ),
                     ),
+                    if (ProPreviewConfig.internalTesting)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Column(
+                          children: [
+                            const Text(
+                              'INTERNAL TESTING ONLY • Test data service',
+                            ),
+                            if (!ProPreviewConfig.enabled)
+                              OutlinedButton(
+                                onPressed: () async {
+                                  String entered = '';
+                                  final accepted = await showDialog<bool>(
+                                    context: context,
+                                    builder: (dialogContext) => AlertDialog(
+                                      title: const Text(
+                                        'Unlock testing access',
+                                      ),
+                                      content: TextField(
+                                        obscureText: true,
+                                        autocorrect: false,
+                                        enableSuggestions: false,
+                                        onChanged: (value) => entered = value,
+                                        decoration: const InputDecoration(
+                                          labelText: 'Private testing code',
+                                        ),
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(
+                                            dialogContext,
+                                            false,
+                                          ),
+                                          child: const Text('Cancel'),
+                                        ),
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(
+                                            dialogContext,
+                                            true,
+                                          ),
+                                          child: const Text('Unlock'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  if (!mounted || accepted != true) return;
+                                  final unlocked = ProPreviewConfig.unlock(
+                                    entered,
+                                  );
+                                  setState(() {});
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        unlocked
+                                            ? 'Full preview access unlocked for this session.'
+                                            : 'Invalid testing code.',
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: const Text('Enter testing code'),
+                              ),
+                          ],
+                        ),
+                      ),
                     if (ProPreviewConfig.enabled)
                       const Center(
                         child: Text(
@@ -787,21 +853,37 @@ class _ResultCard extends StatelessWidget {
           InkWell(
             borderRadius: BorderRadius.circular(18),
             onTap: () async {
-              final names = result.ownerNames.isNotEmpty ? result.ownerNames : [owner];
+              final names = result.ownerNames.isNotEmpty
+                  ? result.ownerNames
+                  : [owner];
               String? selectedOwner = names.first;
               if (names.length > 1) {
-                selectedOwner = await showDialog<String>(context: context, builder: (dialogContext) => SimpleDialog(
-                  title: const Text('Choose recorded owner'),
-                  children: [for (final name in names) SimpleDialogOption(
-                    onPressed: () => Navigator.pop(dialogContext, name), child: Text(name),
-                  )],
-                ));
+                selectedOwner = await showDialog<String>(
+                  context: context,
+                  builder: (dialogContext) => SimpleDialog(
+                    title: const Text('Choose recorded owner'),
+                    children: [
+                      for (final name in names)
+                        SimpleDialogOption(
+                          onPressed: () => Navigator.pop(dialogContext, name),
+                          child: Text(name),
+                        ),
+                    ],
+                  ),
+                );
               }
               if (selectedOwner == null || !context.mounted) return;
-              final selected = await Navigator.of(context).push<String>(MaterialPageRoute(
-                builder: (_) => OwnerSearchPage(owner: selectedOwner!, opa: opa, client: recordsClient),
-              ));
-              if (selected != null && context.mounted) await selectOpa(selected);
+              final selected = await Navigator.of(context).push<String>(
+                MaterialPageRoute(
+                  builder: (_) => OwnerSearchPage(
+                    owner: selectedOwner!,
+                    opa: opa,
+                    client: recordsClient,
+                  ),
+                ),
+              );
+              if (selected != null && context.mounted)
+                await selectOpa(selected);
             },
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
