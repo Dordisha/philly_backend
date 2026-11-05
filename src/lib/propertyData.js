@@ -106,6 +106,7 @@ export function toProperty(row) {
     address: String(row.location ?? "").replace(/\s+/g, " ").trim(),
     owner: [row.owner_1, row.owner_2].filter((v) => v && String(v).trim())
       .map((v) => String(v).trim()).join(" & ") || null,
+    owner_names: [...new Set([row.owner_1, row.owner_2].filter(v => v && String(v).trim()).map(v => String(v).trim()))],
     market_value: numberOrNull(row.market_value),
     sale_price: numberOrNull(row.sale_price),
     sale_date: row.sale_date ? String(row.sale_date).slice(0, 10) : null,

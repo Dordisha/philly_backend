@@ -32,14 +32,15 @@ class ApiClient {
 
   Future<Map<String, dynamic>> get(
     String path,
-    Map<String, String> params,
-  ) async {
+    Map<String, String> params, {
+    String? accessToken,
+  }) async {
     try {
       final uri = Uri.parse(
         '${baseUrl.replaceFirst(RegExp(r"/$"), "")}$path',
       ).replace(queryParameters: params);
       final response = await _client
-          .get(uri, headers: const {'Accept': 'application/json'})
+          .get(uri, headers: {'Accept': 'application/json', if (accessToken != null) 'Authorization': 'Bearer $accessToken'})
           .timeout(timeout);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         if (response.statusCode == 404) {

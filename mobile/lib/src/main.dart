@@ -1,5 +1,6 @@
 // lib/src/main.dart
 import 'dart:async';
+import '../screens/owner_search_page.dart';
 import '../widgets/required_update_gate.dart';
 import '../widgets/notification_settings.dart';
 import '../widgets/premium_ui.dart';
@@ -26,7 +27,7 @@ import '../widgets/pro_coming_soon.dart';
 /// API configuration lives in config/api_config.dart.
 
 /// Source archive version; this preview does not create a store build.
-const String kAppVersion = "1.1.0-preview.8 (11)";
+const String kAppVersion = "1.1.0-preview.10 (13)";
 
 /// Support contact
 const String kFeedbackEmail = "dorian.dishani@gmail.com";
@@ -598,6 +599,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         valueStyle: _valueStyle,
                         violationsService: _violationsService,
                         recordsClient: widget.recordsClient,
+                        selectOpa: (opa) => _scan(opaOverride: opa),
                       ),
                     ],
                   ],
@@ -654,6 +656,7 @@ class _ResultCard extends StatelessWidget {
 
   final ViolationsService violationsService;
   final ApiClient? recordsClient;
+  final Future<void> Function(String) selectOpa;
 
   const _ResultCard({
     required this.result,
@@ -663,6 +666,7 @@ class _ResultCard extends StatelessWidget {
     required this.bodyStyle,
     required this.valueStyle,
     required this.violationsService,
+    required this.selectOpa,
     this.recordsClient,
   });
 
@@ -783,8 +787,21 @@ class _ResultCard extends StatelessWidget {
           InkWell(
             borderRadius: BorderRadius.circular(18),
             onTap: () async {
-              await copy(address, "Address copied");
-              await open("https://tax-services.phila.gov/_/");
+              final names = result.ownerNames.isNotEmpty ? result.ownerNames : [owner];
+              String? selectedOwner = names.first;
+              if (names.length > 1) {
+                selectedOwner = await showDialog<String>(context: context, builder: (dialogContext) => SimpleDialog(
+                  title: const Text('Choose recorded owner'),
+                  children: [for (final name in names) SimpleDialogOption(
+                    onPressed: () => Navigator.pop(dialogContext, name), child: Text(name),
+                  )],
+                ));
+              }
+              if (selectedOwner == null || !context.mounted) return;
+              final selected = await Navigator.of(context).push<String>(MaterialPageRoute(
+                builder: (_) => OwnerSearchPage(owner: selectedOwner!, opa: opa, client: recordsClient),
+              ));
+              if (selected != null && context.mounted) await selectOpa(selected);
             },
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
@@ -800,7 +817,7 @@ class _ResultCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "Visit Philadelphia Tax Website",
+                          "Search by owner",
                           style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w700,
@@ -809,7 +826,7 @@ class _ResultCard extends StatelessWidget {
                         ),
                         SizedBox(height: 6),
                         Text(
-                          "Opens the official City of Philadelphia tax portal",
+                          "Find owner and co-owner properties • Pro",
                           style: TextStyle(
                             fontSize: 13,
                             color: PremiumColors.secondary,
@@ -819,7 +836,7 @@ class _ResultCard extends StatelessWidget {
                     ),
                   ),
                   Icon(
-                    Icons.account_balance,
+                    Icons.person_search_outlined,
                     size: 22,
                     color: PremiumColors.secondary,
                   ),

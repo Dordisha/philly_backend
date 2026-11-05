@@ -25,7 +25,8 @@ jobs:
       - run: flutter test --dart-define=PRO_PREVIEW=false
       - run: flutter test
   simulator-build:
-    runs-on: macos-15
+    needs: flutter
+    runs-on: macos-14
     defaults:
       run:
         working-directory: mobile
@@ -38,12 +39,12 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter build ios --simulator --debug --dart-define=APP_ENV=test --dart-define=PRO_PREVIEW=true
-      # Package only after release-gate review; PR compilation is not delivery.
+      # Packaging requires deliberate dispatch after delivery gates are reviewed.
       - if: github.event_name == 'workflow_dispatch'
-        run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphonesimulator/Runner.app PhillyScan-Simulator-preview.8.zip
+        run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphonesimulator/Runner.app PhillyScan-Simulator-preview.10-full-test-access.zip
       - if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
-          name: PhillyScan-Simulator-preview.8
-          path: mobile/PhillyScan-Simulator-preview.8.zip
+          name: PhillyScan-Simulator-preview.10-full-test-access
+          path: mobile/PhillyScan-Simulator-preview.10-full-test-access.zip
           retention-days: 14

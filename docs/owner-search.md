@@ -30,3 +30,13 @@ Before exposure:
 Source tests exercise matching, query escaping, bounds, paging, duplicate and
 identity rejection, empty/outage distinctions. These are not Apple purchase,
 UI, simulator, or hosted acceptance. Existing release gates remain open.
+
+## November 4 interactive owner-search increment
+
+Tax website card replaced in place. Result screen paginates, shows both recorded names and opens the selected exact OPA. Copy actions unchanged. No preview bypass on `/api/owners`; Free/invalid/expired/revoked access returns 403 `Pro subscription required.` before any upstream query. Errors distinguish access denial from unavailability. User will perform interactive acceptance.
+
+Access provisioning: server-only `OWNER_ACCESS_GRANTS` is a JSON array of `{token_sha256, subject, tier: "pro"|"ai", source: "complimentary"|"subscription", expires_at, revoked}`. Generate a cryptographically random >=32-byte base64url credential outside the app, store only its SHA256 on the server and deliver the private credential securely to its intended recipient. Never commit credentials or embed them in builds. App granted-access entry keeps the credential in memory only. Removing/revoking a record denies subsequent requests; environment changes require service restart. No public grant-creation endpoint exists.
+
+Subscription records additionally require `verified_transaction_id` and `verified_at`. These are trusted server records, NOT receipt verification: the Apple verifier and authenticated account binding are not implemented by this increment. Do not manually assert that a subscription was verified without purchase evidence. Production account login, automated purchase verification/restore and persistent secure session storage remain release gates. This registry is suitable for controlled individually provisioned complimentary access, not a complete subscription system.
+
+No credentials were provisioned and no backend was deployed in this change. Until provisioning/deployment, a live authorized lookup cannot be claimed. Upgrade explicitly reports purchases unavailable in this preview rather than granting access. No change to production, pricing, crime deployment or Schools acceptance.
