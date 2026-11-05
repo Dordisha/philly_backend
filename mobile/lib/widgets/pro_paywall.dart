@@ -107,6 +107,10 @@ class _ProPaywallState extends State<ProPaywall> {
               child: const Text('Continue with Pro'),
             ),
           TextButton(
+            onPressed: store.busy ? null : store.redeem,
+            child: const Text('Redeem promo code'),
+          ),
+          TextButton(
             onPressed: store.busy ? null : () => store.transact(restore: true),
             child: const Text('Restore Purchases'),
           ),

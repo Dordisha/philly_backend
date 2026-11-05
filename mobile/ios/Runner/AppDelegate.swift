@@ -133,6 +133,15 @@ final class ProStore {
           case "product":
             let product = try await self.product()
             reply(["price": product.displayPrice, "id": product.id])
+          case "redeem":
+            if #available(iOS 16.0, *), let scene = UIApplication.shared.connectedScenes
+              .compactMap({ $0 as? UIWindowScene }).first(where: { $0.activationState == .foregroundActive }) {
+              try await AppStore.presentOfferCodeRedeemSheet(in: scene)
+            } else {
+              SKPaymentQueue.default().presentCodeRedemptionSheet()
+            }
+            // Closing the sheet is not proof of redemption; only verified entitlements unlock.
+            reply(await self.entitlement())
           case "restore":
             try await AppStore.sync()
             reply(await self.entitlement())

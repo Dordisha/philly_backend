@@ -61,6 +61,24 @@ class ProSubscription extends ChangeNotifier with WidgetsBindingObserver {
     notifyListeners();
   }
 
+  Future<void> redeem() async {
+    if (busy) return;
+    busy = true;
+    message = null;
+    notifyListeners();
+    try {
+      _accept(await channel.invokeMethod<dynamic>('redeem'));
+      message = active
+          ? 'Pro is active.'
+          : 'Complete redemption with Apple. If your code was accepted, try Restore Purchases.';
+    } catch (_) {
+      message = 'Could not open Apple code redemption. Please try again.';
+    } finally {
+      busy = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> transact({bool restore = false}) async {
     if (busy || (!restore && price == null)) return;
     busy = true;

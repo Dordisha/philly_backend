@@ -1,34 +1,35 @@
 import 'package:flutter/material.dart';
 import 'premium_ui.dart';
 
-/// Roadmap announcement only. No purchase or availability promise.
 class AiComingSoonBanner extends StatefulWidget {
   const AiComingSoonBanner({super.key});
-
   @override
   State<AiComingSoonBanner> createState() => _AiComingSoonBannerState();
 }
 
 class _AiComingSoonBannerState extends State<AiComingSoonBanner> {
   bool dismissed = false;
-
   @override
   Widget build(BuildContext context) {
     if (dismissed) return const SizedBox.shrink();
     return Card(
       color: const Color(0xFFF4F1E5),
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.fromLTRB(14, 6, 6, 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                const Icon(Icons.auto_awesome, color: PremiumColors.green),
-                const SizedBox(width: 10),
+                const Icon(
+                  Icons.auto_awesome,
+                  color: PremiumColors.green,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
                 const Expanded(
                   child: Text(
-                    'AI-powered insights are coming',
+                    'AI insights • Coming soon',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -40,45 +41,42 @@ class _AiComingSoonBannerState extends State<AiComingSoonBanner> {
               ],
             ),
             const Text(
-              'We’re building tools to help you understand a property and prepare for conversations with your real-estate agent.',
+              'Property insights and smarter questions for your agent.',
             ),
-            const ExpansionTile(
-              tilePadding: EdgeInsets.zero,
-              title: Text('See what’s planned'),
-              children: [
-                ListTile(
-                  leading: Icon(Icons.home_work_outlined),
-                  title: Text('Resale insights'),
-                  subtitle: Text(
-                    'Explore comparable sales and clearly explained assumptions.',
+            TextButton(
+              onPressed: () => showModalBottomSheet<void>(
+                context: context,
+                isScrollControlled: true,
+                builder: (context) => SafeArea(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'What’s planned',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          '• Resale insights from comparable sales\n• Clear explanations of property records\n• Questions to ask your real-estate agent\n• Language support, planned for later',
+                          style: TextStyle(height: 1.6),
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Not included in current Pro. Launch date to be announced.',
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Got it'),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                ListTile(
-                  leading: Icon(Icons.manage_search),
-                  title: Text('Understand the records'),
-                  subtitle: Text(
-                    'Plain-language explanations and property signals linked to their sources.',
-                  ),
-                ),
-                ListTile(
-                  leading: Icon(Icons.question_answer_outlined),
-                  title: Text('Prepare questions for your agent'),
-                  subtitle: Text(
-                    'Suggested questions based on available property records—for example, which violations need clarification or what to ask during an inspection.',
-                  ),
-                ),
-                ListTile(
-                  leading: Icon(Icons.translate),
-                  title: Text('Language support, planned for later'),
-                  subtitle: Text(
-                    'Bilingual explanations and a shareable question list for buyers and their agents.',
-                  ),
-                ),
-              ],
-            ),
-            const Text(
-              'Coming later • Not included in the current Pro subscription. Availability and launch date will be announced after testing.',
-              style: TextStyle(fontSize: 12, color: PremiumColors.secondary),
+              ),
+              child: const Text('Learn more'),
             ),
           ],
         ),

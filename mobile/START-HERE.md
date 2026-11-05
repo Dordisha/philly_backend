@@ -37,3 +37,10 @@ Suggested local commands after review: flutter analyze; flutter test --dart-defi
 
 ## Validation in this delivery
 Dart formatting/parser and shell syntax/diff checks only. Flutter setup in the prior session was blocked by automatic review because it contacted a cloud metadata endpoint. That setup was not retried or bypassed. No native Apple SDK is available here, so native compile, Flutter tests, and device purchase tests remain outstanding. This package is an integration candidate, not a claim of launch readiness.
+
+## Free Pro offer codes
+The paywall includes Redeem promo code. It opens Apple's system sheet; a code never directly flips an app access flag. Verified Apple entitlement updates unlock Pro after redemption. Rejected, expired, cancelled and ineligible redemptions must remain locked.
+
+Create actual codes in App Store Connect → Philly Scan → Subscriptions → Pro → Offer Codes after the subscription is configured. Choose Free and the duration. For gifts with no later charge, enable Apple's option to prevent auto-renewal. Select eligibility intentionally (new/existing/expired subscribers), countries, expiry and redemption limits. Start with one-time codes for private gifts. A shared custom code is a reusable campaign code up to its limit; do not share it as if it were single-use. Codes provide a fixed free period, not lifetime access. No real offer codes were generated in this delivery.
+
+Proposed additional acceptance: valid free offer, cancelled redemption, invalid/expired/ineligible code, duplicate redemption, restore after redemption, free-period expiration without renewal/charge. Confirm the Apple offer details match the promised duration and no-auto-renew setting before distributing codes.

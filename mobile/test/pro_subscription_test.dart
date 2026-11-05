@@ -63,6 +63,13 @@ void main() {
     expect(store.active, false);
     expect(store.message, contains('approval'));
   });
+  test(
+    'closing redemption sheet without entitlement does not unlock',
+    () async {
+      await store.redeem();
+      expect(store.active, false);
+    },
+  );
   test('bridge failure removes stale entitlement', () async {
     status = {
       'active': true,
