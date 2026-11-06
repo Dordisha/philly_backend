@@ -1,7 +1,7 @@
-name: Pro purchase candidate
+name: Free records candidate
 on:
   push:
-    branches: ['build/pro-purchase-candidate-16']
+    branches: ['build/free-records-ai-18']
   workflow_dispatch:
 permissions:
   contents: read
@@ -20,12 +20,15 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      - name: Compile purchase candidate
-        run: flutter build ios --simulator --debug --build-name=1.1.0 --build-number=16 --dart-define-from-file=release-settings.json --dart-define=APP_ENV=prod --dart-define=PRO_PREVIEW=false --dart-define=INTERNAL_TESTING=false
+      - run: flutter analyze
+      - run: flutter test --dart-define=PRO_PREVIEW=false
+      - run: flutter test --dart-define=PRO_PREVIEW=true
+      - name: Compile free records candidate
+        run: flutter build ios --simulator --debug --build-name=1.1.0 --build-number=18 --dart-define-from-file=release-settings.json --dart-define=APP_ENV=prod --dart-define=PRO_PREVIEW=false --dart-define=INTERNAL_TESTING=false
       - name: Package simulator application
-        run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphonesimulator/Runner.app PhillyScan-Pro-Candidate-16-Simulator.zip
+        run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphonesimulator/Runner.app PhillyScan-Free-Records-18-Simulator.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: PhillyScan-Pro-Candidate-16-Simulator
-          path: mobile/PhillyScan-Pro-Candidate-16-Simulator.zip
+          name: PhillyScan-Free-Records-18-Simulator
+          path: mobile/PhillyScan-Free-Records-18-Simulator.zip
           retention-days: 14

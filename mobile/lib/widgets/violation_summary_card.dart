@@ -138,7 +138,7 @@ class _ViolationSummaryCardState extends State<ViolationSummaryCard> {
                         initialSection: 1,
                         title: "Enforcement Details",
                         message:
-                            "You can see the summary for free.\n\nDetailed case history and enforcement records will be available in the Pro version soon.",
+                            "Detailed enforcement records are free. Verify published statuses and dates with the City.",
                       );
                     },
                     child: const Text("View enforcement details"),

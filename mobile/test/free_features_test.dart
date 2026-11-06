@@ -64,7 +64,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('AI features are coming later'), findsOneWidget);
         expect(
-          find.textContaining('not included in the current Pro'),
+          find.textContaining('Not available to purchase yet'),
           findsOneWidget,
         );
       }

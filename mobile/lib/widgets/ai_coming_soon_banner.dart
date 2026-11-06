@@ -65,7 +65,7 @@ class _AiComingSoonBannerState extends State<AiComingSoonBanner> {
                         ),
                         const SizedBox(height: 16),
                         const Text(
-                          'Not included in current Pro. Launch date to be announced.',
+                          r'Planned AI subscription: $9.99/month. Not available to purchase yet. Public records remain free.',
                         ),
                         TextButton(
                           onPressed: () => Navigator.pop(context),

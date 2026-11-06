@@ -1,17 +1,12 @@
 import { Router } from 'express';
-import { resolveOwnerAccess } from '../services/ownerAccess.js';
 import { searchOwnerProperties } from '../lib/ownerSearch.js';
 
-export function ownerRouter({ authorize = resolveOwnerAccess, search = searchOwnerProperties } = {}) {
+export function ownerRouter({ search = searchOwnerProperties } = {}) {
   const router = Router();
-  router.use(async (req, res, next) => {
+  // Public property data is free; input validation and bounded paging remain.
+  router.use((req, res, next) => {
     res.set('Cache-Control', 'no-store');
-    try {
-      if (await authorize(req.get('Authorization')) !== true) return res.status(403).json({ ok: false, code: 'pro_required', message: 'Pro subscription required.' });
-      next();
-    } catch {
-      res.status(503).json({ ok: false, message: 'Access verification unavailable. Please retry.' });
-    }
+    next();
   });
   router.get('/', async (req, res) => {
     try {
