@@ -1,4 +1,3 @@
-import 'package:flutter/services.dart';
 import 'package:philly_scan_app/services/pro_subscription.dart';
 import 'package:philly_scan_app/screens/pro_overview_page.dart';
 import 'package:flutter/material.dart';
