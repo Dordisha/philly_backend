@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:philly_scan_app/services/pro_subscription.dart';
@@ -85,4 +86,57 @@ void main() {
     await store.refresh();
     expect(store.active, false);
   });
+  test('older status cannot restore access after a newer denial', () async {
+    final oldReply = Completer<dynamic>();
+    var calls = 0;
+    messenger.setMockMethodCallHandler(ProSubscription.channel, (_) async {
+      if (calls++ == 0) return oldReply.future;
+      return {'active': false};
+    });
+    final oldRequest = store.refresh();
+    await Future<void>.delayed(Duration.zero);
+    await store.refresh();
+    oldReply.complete({
+      'active': true,
+      'expiresAt': DateTime.now().add(const Duration(hours: 1)).millisecondsSinceEpoch,
+    });
+    await oldRequest;
+    expect(store.active, false);
+  });
+
+  test('older bridge failure cannot erase newer verified access', () async {
+    final oldReply = Completer<dynamic>();
+    var calls = 0;
+    messenger.setMockMethodCallHandler(ProSubscription.channel, (_) async {
+      if (calls++ == 0) return oldReply.future;
+      return {
+        'active': true,
+        'expiresAt': DateTime.now().add(const Duration(hours: 1)).millisecondsSinceEpoch,
+      };
+    });
+    final oldRequest = store.refresh();
+    await Future<void>.delayed(Duration.zero);
+    await store.refresh();
+    oldReply.completeError(PlatformException(code: 'offline'));
+    await oldRequest;
+    expect(store.active, true);
+  });
+
+  test('delayed restore cannot overwrite a newer revoked status', () async {
+    final restoreReply = Completer<dynamic>();
+    messenger.setMockMethodCallHandler(ProSubscription.channel, (call) async {
+      if (call.method == 'restore') return restoreReply.future;
+      return {'active': false};
+    });
+    final restoring = store.transact(restore: true);
+    await Future<void>.delayed(Duration.zero);
+    await store.refresh();
+    restoreReply.complete({
+      'active': true,
+      'expiresAt': DateTime.now().add(const Duration(hours: 1)).millisecondsSinceEpoch,
+    });
+    await restoring;
+    expect(store.active, false);
+  });
+
 }

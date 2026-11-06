@@ -9,6 +9,7 @@ class ProSubscription extends ChangeNotifier with WidgetsBindingObserver {
   DateTime? _expires;
   Timer? _expiryTimer;
   bool _started = false;
+  int _accessRevision = 0;
   bool busy = false;
   String? price, message;
   bool get active => _expires?.isAfter(DateTime.now()) ?? false;
@@ -23,7 +24,10 @@ class ProSubscription extends ChangeNotifier with WidgetsBindingObserver {
     unawaited(refresh());
   }
 
-  void _accept(dynamic value) {
+  // A delayed bridge reply must never overwrite a newer entitlement decision.
+  void _accept(dynamic value, {int? revision}) {
+    if (revision != null && revision != _accessRevision) return;
+    _accessRevision++;
     _expiryTimer?.cancel();
     final data = value is Map ? value : const {};
     final end = data['expiresAt'];
@@ -32,6 +36,7 @@ class ProSubscription extends ChangeNotifier with WidgetsBindingObserver {
         : null;
     if (active) {
       _expiryTimer = Timer(_expires!.difference(DateTime.now()), () {
+        _accessRevision++;
         _expires = null;
         notifyListeners();
         unawaited(refresh());
@@ -41,10 +46,11 @@ class ProSubscription extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<void> refresh() async {
+    final revision = ++_accessRevision;
     try {
-      _accept(await channel.invokeMethod<dynamic>('status'));
+      _accept(await channel.invokeMethod<dynamic>('status'), revision: revision);
     } catch (_) {
-      _accept(null);
+      _accept(null, revision: revision);
     }
   }
 
@@ -66,8 +72,9 @@ class ProSubscription extends ChangeNotifier with WidgetsBindingObserver {
     busy = true;
     message = null;
     notifyListeners();
+    final revision = ++_accessRevision;
     try {
-      _accept(await channel.invokeMethod<dynamic>('redeem'));
+      _accept(await channel.invokeMethod<dynamic>('redeem'), revision: revision);
       message = active
           ? 'Pro is active.'
           : 'Complete redemption with Apple. If your code was accepted, try Restore Purchases.';
@@ -84,6 +91,7 @@ class ProSubscription extends ChangeNotifier with WidgetsBindingObserver {
     busy = true;
     message = null;
     notifyListeners();
+    final revision = ++_accessRevision;
     try {
       final data = await channel.invokeMapMethod<String, dynamic>(
         restore ? 'restore' : 'purchase',
@@ -96,7 +104,7 @@ class ProSubscription extends ChangeNotifier with WidgetsBindingObserver {
       } else if (data?['outcome'] != null) {
         message = 'Purchase not completed. Please try again.';
       } else {
-        _accept(data);
+        _accept(data, revision: revision);
         message = active
             ? 'Pro is active.'
             : restore
