@@ -1,5 +1,5 @@
 {
-  "APP_ENV": "test",
+  "APP_ENV": "prod",
   "PRO_PREVIEW": false,
   "INTERNAL_TESTING": false,
   "PRIVACY_POLICY_URL": "https://smoggy-silence-f88.notion.site/Philly-Scan-Privacy-Policy-4107f2ef2cfa81d7b614d0600521d606"
