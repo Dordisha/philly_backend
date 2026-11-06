@@ -1,33 +1,37 @@
-# Philly Scan Pro — release candidate
-## Two distinct builds
-- Preview 10 (13): existing unlocked simulator for inspecting features. Keep this available.
-- Pro candidate 16: production API, preview and internal bypass disabled, StoreKit subscription purchase/restore/redemption. A simulator artifact checks native compilation and UI; actual Apple checkout requires signed iPhone/TestFlight testing.
+# Philly Scan 1.1.0 (18) — Free records, AI coming later
 
-## Current verified state
-- Production records repair was deployed and verified in the prior session; do not repeat the old claim that the repair is still pending.
-- Published privacy policy is configured in release-settings.json.
-- Apple subscription product was created: com.dorian.phillyscan.pro.monthly, one month. Description and US availability were entered. Verify saved USD 2.99 price.
-- Flutter analysis and both existing test configurations passed on source commit fcf1a8b05d32e686e8c628c2420003892abb6247. Mac compilation was cancelled; that is not evidence of a compiler error.
-- No signed TestFlight upload or end-to-end purchase success has been verified.
+This replaces purchase candidate 16 / uploaded TestFlight build 17.
 
-## Offers agreed with Dorian
-- One lifetime owner entitlement, proposed label PROBRO77: NOT IMPLEMENTED OR ACTIVE.
-- Five offers: one month free, then USD 2.99/month unless cancelled.
-- Fourteen offers: one week free, then USD 2.99/month unless cancelled.
-- Apple redemption UI exists in source. No offer has been confirmed created/activated in App Store Connect. Proposed funny labels are not functioning codes.
-- Confirm Apple-supported custom-code redemption limits and durations before promising individual single-use labels.
-- Clearly disclose automatic renewal at redemption.
+## What changed
+- Property facts, 311, L&I, owner search and Zillow links require no subscription.
+- The $2.99 Pro purchase screen and native StoreKit product integration are removed.
+- AI is planned at $9.99/month, clearly unavailable for purchase. No AI entitlement is sold or granted.
+- Settings explains independent operation and links to free City datasets.
+- No ad SDK/account is configured. This build displays no ads and collects no ad identifiers. Advertising requires publisher IDs, consent/privacy configuration and separate device testing before activation.
+- Internal debug previews remain isolated from the production configuration.
 
-## Next delivery steps
-1. Obtain a successful native build of the Pro candidate.
-2. Prepare signed iPhone archive in Xcode using production settings, build 16 or a higher unused build number.
-3. Upload through App Store Connect, NOT TestFlight Internal Only, to preserve eligibility for eventual App Store submission.
-4. Install on iPhone through TestFlight; confirm product price loads and capture genuine subscription screen for review.
-5. Finish subscription review metadata and activate agreed offers.
-6. Review device acceptance scenarios with Dorian before running them: purchase, cancellation/pending, restore, expiration/revocation, redemption, all four Pro features, and AI exclusion.
-7. Resolve lifetime owner access, complete device validation, then submit for App Review. Do not claim readiness based on simulator compilation alone.
+## Prepare on your Mac
+1. Download this branch's complete source ZIP and unzip it.
+2. Open mobile/PREPARE_TESTFLIGHT.command. It prepares production configuration with preview/internal flags false and build 18.
+3. In Xcode select Runner, your signing team and Any iOS Device, then Product > Archive.
+4. Distribute using App Store Connect; install 1.1.0 (18) from TestFlight after processing.
 
-## Scope
-Pro: detailed 311, L&I, recorded-owner search, Zillow links.
-AI features remain coming soon and excluded from paid Pro.
-StoreKit verifies Apple transactions on device. This is not server-side authorization for private or costly APIs.
+The script prepares configuration; Xcode performs the native archive. A source ZIP is not a compiled app.
+If Apple has already received build 18, run with a higher BUILD_NUMBER instead.
+
+## App Store Connect changes still required
+- Stop offering com.dorian.phillyscan.pro.monthly and remove it from any pending submission. Do not repurpose its product ID for AI.
+- Check whether there are any real subscribers before changing availability; removing the in-app purchase UI does not cancel existing renewals. Manage existing subscribers through Apple's supported process.
+- Remove old $2.99 Pro and promo-offer claims from app metadata/screenshots.
+- Submit this version without a new AI subscription. Create a separate AI product only when the promised features and purchase/restore flow work.
+- The app's free public-record offer does not establish permission for commercial data reuse. Obtain City clarification before paid/ad-supported launch.
+
+## Device acceptance checklist
+- With no subscription, scan a property; open 311, L&I, Zillow and owner search.
+- Verify correct property/OPA, published statuses, pagination and failure/retry behavior.
+- Confirm there is no Pro upgrade, subscribe, redemption or old price flow.
+- Confirm AI says coming later and cannot charge.
+- Open Settings > Free access, AI & sources; verify source and privacy links.
+- Verify notifications and normal navigation still work.
+
+Backend owner API must deploy this branch's public-access change separately. The mobile owner lookup continues using its existing direct City API adapter.

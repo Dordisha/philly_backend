@@ -1,5 +1,3 @@
-import '../widgets/pro_paywall.dart';
-import '../services/pro_subscription.dart';
 import 'crime_trends_page.dart';
 import 'package:flutter/material.dart';
 import '../config/pro_preview_config.dart';
@@ -31,7 +29,7 @@ class FeatureMenu extends StatelessWidget {
         builder: (_) => AlertDialog(
           title: const Text('AI features are coming later'),
           content: const Text(
-            'This feature is not included in the current Pro subscription.',
+            r'Planned AI subscription: $9.99/month. Not available to purchase yet. Public records remain free.',
           ),
           actions: [
             TextButton(
@@ -53,7 +51,6 @@ class FeatureMenu extends StatelessWidget {
         );
       return;
     }
-    if (!await requirePro(context) || !context.mounted) return;
     if (section != null || opa.isEmpty) {
       await showProComingSoonDialog(
         context,
@@ -65,17 +62,15 @@ class FeatureMenu extends StatelessWidget {
     } else {
       await Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (_) => ProAccessGate(
-            child: title == 'Zillow'
-                ? BrandedScaffold(
-                    appBar: AppBar(title: const Text('Check status')),
-                    body: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: PropertyStatusCard(address: address),
-                    ),
-                  )
-                : PremiumFeaturePage(title: title, address: address),
-          ),
+          builder: (_) => title == 'Zillow'
+              ? BrandedScaffold(
+                  appBar: AppBar(title: const Text('Check status')),
+                  body: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: PropertyStatusCard(address: address),
+                  ),
+                )
+              : PremiumFeaturePage(title: title, address: address),
         ),
       );
     }
@@ -121,12 +116,7 @@ class FeatureMenu extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      _heading(
-        'Pro',
-        ProSubscription.instance.price == null
-            ? ''
-            : '${ProSubscription.instance.price} / month',
-      ),
+      _heading('Public records', 'Free'),
       _grid(context, [
         ('311', Icons.notifications_none, 0),
         ('L&I', Icons.account_balance_outlined, 1),
@@ -134,7 +124,7 @@ class FeatureMenu extends StatelessWidget {
       ]),
       _heading('Neighborhood data', ''),
       _grid(context, [('Crime trends', Icons.shield_outlined, null)]),
-      _heading('Coming later', ''),
+      _heading('AI • Coming later', r'Planned $9.99/month'),
       _grid(context, [
         ('Resale', Icons.trending_up, 2),
         ('Signals', Icons.bar_chart_outlined, 3),
@@ -150,7 +140,7 @@ class FeatureMenu extends StatelessWidget {
       ),
       const SizedBox(height: 8),
       const Text(
-        'Upcoming AI features are not included in Pro.',
+        'Public records are free. AI analysis is not available to purchase yet.',
         style: TextStyle(fontSize: 12, color: PremiumColors.secondary),
       ),
     ],

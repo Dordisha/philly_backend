@@ -14,6 +14,6 @@ assert s.get('PRO_PREVIEW') is False and s.get('INTERNAL_TESTING') is False, 'Te
 assert s.get('APP_ENV') == 'prod', 'The release candidate must use production.'
 CHECK
 flutter pub get
-flutter build ios --release --config-only --build-name=1.1.0 --build-number="${BUILD_NUMBER:-16}" --dart-define-from-file=release-settings.json
+flutter build ios --release --config-only --build-name=1.1.0 --build-number="${BUILD_NUMBER:-18}" --dart-define-from-file=release-settings.json
 open ios/Runner.xcworkspace
-printf '\nIn Xcode: confirm bundle ID and signing team, select Any iOS Device, Product > Archive. Upload using App Store Connect (not TestFlight Internal Only if this build is intended for later release). Test purchases on an iPhone.\n'
+printf '\nIn Xcode: confirm bundle ID and signing team, select Any iOS Device, Product > Archive. Upload using App Store Connect (not TestFlight Internal Only if this build is intended for later release). Verify free records and owner search on an iPhone. No subscriptions are sold in this build.\n'
