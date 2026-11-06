@@ -85,3 +85,53 @@ test('selling signals use dated facts and explicit weak rules, never fabricated 
   assert.equal(propertySignals({...property,sale_date:null},'2026-11-01').label,'Insufficient evidence');
   assert.equal(propertySignals({...property,sale_date:'2030-01-01'},'2026-11-01').factors.length,0);
 });
+
+
+test('unit-specific parcels never receive building-wide 311 complaints', async () => {
+  for (const unit of ['2A', ' 101 ', 7]) {
+    let calls = 0;
+    await api(async () => { calls++; return [{...property, unit}]; }, async base => {
+      const r = await get(base, '/311?opa=363258000');
+      assert.equal(r.status, 422);
+      assert.match(r.body.message, /Unit-specific/);
+      assert.equal(r.body.rows, undefined);
+      assert.equal(calls, 1);
+    });
+  }
+});
+test('blank unit permits exact street matching, malformed ZIP does not', async () => {
+  for (const unit of [null, '', '  ']) {
+    await api(async sql => sql.includes('public_cases_fc') ? [] : [{...property, unit}], async base => {
+      assert.equal((await get(base, '/311?opa=363258000')).status, 200);
+    });
+  }
+  for (const zip_code of ['191', 'unknown', null]) {
+    let calls = 0;
+    await api(async () => { calls++; return [{...property, zip_code}]; }, async base => {
+      assert.equal((await get(base, '/311?opa=363258000')).status, 422);
+      assert.equal(calls, 1);
+    });
+  }
+});
+test('every records endpoint rejects mismatched, missing or ambiguous parcel identity', async () => {
+  for (const rows of [[{...property, parcel_number:'999999999'}], [{...property, parcel_number:null}], [property, property]]) {
+    for (const section of ['311', 'violations', 'sales', 'facts']) {
+      let calls = 0;
+      await api(async () => { calls++; return rows; }, async base => {
+        const r = await get(base, '/' + section + '?opa=363258000');
+        assert.equal(r.status, 503);
+        assert.equal(r.body.rows, undefined);
+        assert.match(r.body.message, /identity/);
+        assert.equal(calls, 1);
+      });
+    }
+  }
+});
+test('unit guard does not block parcel-matched L&I records', async () => {
+  const row = {casenumber:'CASE-UNIT',violationstatus:'OPEN'};
+  await api(async sql => sql.includes('FROM violations') ? [row] : [{...property,unit:'2A'}], async base => {
+    const r = await get(base, '/violations?opa=363258000');
+    assert.equal(r.status, 200);
+    assert.deepEqual(r.body.rows, [row]);
+  });
+});
