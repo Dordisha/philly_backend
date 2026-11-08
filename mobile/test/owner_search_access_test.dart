@@ -55,16 +55,31 @@ void main() {
     'note': 'Fixture response, not live records.',
   }), 200);
 
+  void protectedTest(String name, Future<void> Function(WidgetTester) body) {
+    testWidgets(name, (tester) async {
+      try {
+        await body(tester);
+      } finally {
+        // Cancel the StoreKit expiry timer before testWidgets checks invariants;
+        // package:test tearDown runs after that check.
+        active = false;
+        await store.refresh();
+        await tester.pumpWidget(const SizedBox());
+        await tester.pumpAndSettle();
+      }
+    });
+  }
+
   // Explicitly skipped in the preview run; the preview-disabled CI run executes
   // every case. No return-early test is counted as testing the protected path.
   group('protected owner search', () {
-    testWidgets('Free is locked before any data request', (tester) async {
+    protectedTest('Free is locked before any data request', (tester) async {
       await open(tester, paid: false);
       expect(find.text('Pro subscription required.'), findsOneWidget);
       expect(find.text('Upgrade to Pro'), findsOneWidget);
       expect(requests, isEmpty);
     });
-    testWidgets('local paid state cannot bypass server denial', (tester) async {
+    protectedTest('local paid state cannot bypass server denial', (tester) async {
       await open(tester);
       expect(requests, hasLength(1));
       expect(requests.single.url.host, 'protected.example.test');
@@ -74,7 +89,7 @@ void main() {
       expect(find.text('Pro subscription required.'), findsOneWidget);
       expect(find.text('No matching properties found.'), findsNothing);
     });
-    testWidgets('outages and malformed success never become empty or fallback', (tester) async {
+    protectedTest('outages and malformed success never become empty or fallback', (tester) async {
       for (final response in [http.Response('{}', 404), http.Response('{}', 503), http.Response('{"ok":false,"rows":[]}', 200)]) {
         reply = (_) async => response;
         await tester.pumpWidget(const SizedBox());
@@ -85,7 +100,7 @@ void main() {
       expect(requests, hasLength(3));
       expect(requests.map((r) => r.url.path), everyElement('/api/owners'));
     });
-    testWidgets('pagination is server controlled and subsequent denial clears rows', (tester) async {
+    protectedTest('pagination is server controlled and subsequent denial clears rows', (tester) async {
       reply = (_) async => requests.length == 1 ? page(cursor: '100000001') : http.Response('{}', 403);
       await open(tester);
       expect(find.text('FIXTURE ADDRESS'), findsOneWidget);
@@ -98,7 +113,7 @@ void main() {
       expect(find.text('Fixture response, not live records.'), findsNothing);
       expect(find.text('Pro subscription required.'), findsOneWidget);
     });
-    testWidgets('revocation clears records and discards a pending page', (tester) async {
+    protectedTest('revocation clears records and discards a pending page', (tester) async {
       final pending = Completer<http.Response>();
       reply = (_) async {
         if (requests.length == 1) return page(cursor: '100000001');
