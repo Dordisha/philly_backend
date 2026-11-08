@@ -100,7 +100,10 @@ void main() {
     });
     testWidgets('revocation clears records and discards a pending page', (tester) async {
       final pending = Completer<http.Response>();
-      reply = (_) async => requests.length == 1 ? page(cursor: '100000001') : pending.future;
+      reply = (_) async {
+        if (requests.length == 1) return page(cursor: '100000001');
+        return await pending.future;
+      };
       await open(tester);
       await tester.ensureVisible(find.text('Load more'));
       await tester.tap(find.text('Load more'));
