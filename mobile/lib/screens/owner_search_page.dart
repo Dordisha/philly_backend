@@ -1,6 +1,8 @@
 import '../services/pro_subscription.dart';
 import '../widgets/pro_paywall.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import '../config/api_config.dart';
 import '../src/api_client.dart';
 import '../config/pro_preview_config.dart';
 
@@ -23,13 +25,16 @@ class _OwnerSearchPageState extends State<OwnerSearchPage> {
   final rows = <Map<String, dynamic>>[];
   bool loading = false, denied = false;
   String? error, cursor, note;
-  bool get preview => ProPreviewConfig.enabled;
+  // Direct public-data access is restricted to debug on the fixed test host.
+  bool get preview => kDebugMode && ProPreviewConfig.enabled &&
+      ApiConfig.environment == 'test' && ApiConfig.baseUrl == ApiConfig.testBaseUrl;
+  int accessRevision = 0;
   bool get hasAccess => preview || ProSubscription.instance.active;
   late String selectedOwner = widget.owner;
   List<String> previewOwners = [];
   String quote(String value) => "'${value.replaceAll("'", "''")}'";
-  Future<Map<String, dynamic>> publicOwnerSearch() async {
-    if (!hasAccess) throw StateError('Pro subscription required');
+  Future<Map<String, dynamic>> previewOwnerSearch() async {
+    if (!preview) throw StateError('Pro subscription required');
     final publicClient = ApiClient(baseUrl: 'https://phl.carto.com');
     try {
       if (previewOwners.isEmpty && widget.opa != null) {
@@ -109,6 +114,7 @@ class _OwnerSearchPageState extends State<OwnerSearchPage> {
   @override
   void initState() {
     super.initState();
+    ProSubscription.instance.addListener(accessChanged);
     if (!hasAccess) {
       denied = true;
       error = 'Pro subscription required.';
@@ -117,25 +123,52 @@ class _OwnerSearchPageState extends State<OwnerSearchPage> {
     }
   }
 
+  void accessChanged() {
+    if (!mounted || preview || ProSubscription.instance.active) return;
+    accessRevision++;
+    setState(() {
+      rows.clear();
+      cursor = null;
+      note = null;
+      loading = false;
+      denied = true;
+      error = 'Pro subscription required.';
+    });
+  }
+
   @override
   void dispose() {
+    accessRevision++;
+    ProSubscription.instance.removeListener(accessChanged);
     if (widget.client == null) client.close();
     super.dispose();
   }
 
   Future<void> load() async {
+    final revision = ++accessRevision;
     setState(() {
       loading = true;
       error = null;
       denied = false;
     });
     try {
-      if (!hasAccess) throw StateError('Pro subscription required');
-      final data = await publicOwnerSearch();
+      if (!hasAccess) {
+        throw ApiException(message: 'Pro subscription required.', statusCode: 403);
+      }
+      // A local StoreKit state only permits attempting the request. The server
+      // must authorize every page. No client tier, shared code or CARTO fallback.
+      // Authenticated session/purchase exchange remains a release dependency.
+      final data = preview
+          ? await previewOwnerSearch()
+          : await client.get('/api/owners', {
+              'name': selectedOwner,
+              if (cursor != null) 'after': cursor!,
+            });
+      if (!preview && data['ok'] != true) throw const FormatException();
       final incoming = (data['rows'] as List)
           .map((r) => Map<String, dynamic>.from(r as Map))
           .toList();
-      if (!mounted) return;
+      if (!mounted || revision != accessRevision) return;
       setState(() {
         final ids = rows.map((r) => r['parcel_number'].toString()).toSet();
         rows.addAll(
@@ -145,7 +178,7 @@ class _OwnerSearchPageState extends State<OwnerSearchPage> {
         note = data['note'] as String?;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || revision != accessRevision) return;
       setState(() {
         denied =
             e is ApiException && (e.statusCode == 401 || e.statusCode == 403);
@@ -155,10 +188,13 @@ class _OwnerSearchPageState extends State<OwnerSearchPage> {
         if (denied) {
           rows.clear();
           cursor = null;
+          note = null;
         }
       });
     } finally {
-      if (mounted) setState(() => loading = false);
+      if (mounted && revision == accessRevision) {
+        setState(() => loading = false);
+      }
     }
   }
 
