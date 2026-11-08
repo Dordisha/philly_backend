@@ -40,3 +40,31 @@ Access provisioning: server-only `OWNER_ACCESS_GRANTS` is a JSON array of `{toke
 Subscription records additionally require `verified_transaction_id` and `verified_at`. These are trusted server records, NOT receipt verification: the Apple verifier and authenticated account binding are not implemented by this increment. Do not manually assert that a subscription was verified without purchase evidence. Production account login, automated purchase verification/restore and persistent secure session storage remain release gates. This registry is suitable for controlled individually provisioned complimentary access, not a complete subscription system.
 
 No credentials were provisioned and no backend was deployed in this change. Until provisioning/deployment, a live authorized lookup cannot be claimed. Upgrade explicitly reports purchases unavailable in this preview rather than granting access. No change to production, pricing, crime deployment or Schools acceptance.
+
+## November 8 — close the Pro client's direct-source bypass
+
+The purchase candidate had replaced the protected client path with a direct
+CARTO query after an on-device StoreKit check. The new correction sends normal
+owner-search pages to the configured `/api/owners` route. It never retries a
+403, 404, 503 or malformed success against CARTO. Direct public queries require
+Debug mode, an enabled preview, and the fixed existing staging origin; internal
+unlock flags alone cannot enable this path in profile/release.
+
+Local entitlement loss clears displayed results and invalidates pending replies.
+Free access retains the Pro-required/Upgrade screen. Server denial also clears
+results. Backend authorization remains mandatory on every page.
+
+This is a fail-closed correction, **not completed subscription integration**.
+The current app has no authenticated server-session/purchase exchange and does
+not attach a credential to this request. The existing protected route therefore
+denies it; an absent deployment is unavailable, not a successful empty search.
+Do not enable sales or claim verified Pro/AI/complimentary access until account
+binding, Apple verification, token issuance and secure session transport work
+end to end. The older manual-code UI described above is not in this candidate.
+No credentials are embedded or provisioned by this patch.
+
+Mocked widget tests cover Free denial, local-paid/server-denied access, outages,
+server-controlled pagination, denial after a page and revocation during an
+in-flight response. These are contract tests, not Apple or simulator acceptance.
+Existing main-screen owner/co-owner selection and exact-OPA navigation remain;
+runtime verification is still required under #19/#26.
