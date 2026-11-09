@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { queryCarto } from '../lib/carto.js';
 import { literal, validOpa } from '../lib/propertyData.js';
+import { requirePaidAccess, resolvePaidAccess } from '../services/paidAccess.js';
 
 const PROPERTY_FIELDS = `parcel_number, location, zip_code, unit, sale_date, sale_price,
   owner_1, owner_2, mailing_street, mailing_city_state, mailing_zip,
@@ -73,10 +74,11 @@ export function propertySignals(property, at) {
   };
 }
 
-export function createRecordsRouter({ query = queryCarto, now = () => new Date().toISOString() } = {}) {
+export function createRecordsRouter({ query = queryCarto, now = () => new Date().toISOString(), authorize = resolvePaidAccess } = {}) {
   const router = Router();
   for (const section of ['311', 'violations', 'sales', 'facts']) {
-    router.get('/' + section, async (req, res) => {
+    const tier = ['311', 'violations'].includes(section) ? 'pro' : 'ai';
+    router.get('/' + section, requirePaidAccess(tier, authorize), async (req, res) => {
       const opa = typeof req.query.opa === 'string' ? req.query.opa.trim() : '';
       if (!validOpa(opa)) return res.status(400).json({ ok: false, message: 'A valid OPA is required.' });
       const limit = Math.max(1, pageNumber(req.query.limit, 25, 50));

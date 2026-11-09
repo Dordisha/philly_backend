@@ -2,6 +2,12 @@
 
 Run `node scripts/check-staging.mjs` after the cycle's source changes and regression tests finish. No cron, services, subscriptions, dashboard feeds or alerts are created. Fixed TEST host; twelve sequential GETs, 45-second deadline each, no redirects/retries. Exit 1 on failure or unavailable source. Output contains the hosted commit, timestamp, latency and individual outcomes, not raw owner/complaint data.
 
+This checks the existing staging data contract, not paid-route authorization.
+The November 9 protected source has not been deployed. Its paid routes require
+authenticated access; do not treat anonymous successes on older staging as a
+release pass. See [paid-route-access.md](paid-route-access.md) for integration
+and rollout blockers before replacing the staging source.
+
 Covers deployment identity, exact OPA lookup, 311 address/ZIP, L&I identifiers/raw statuses, sales radius/subject exclusion, facts parcel, second 311 page, invalid identifiers, and crime at 402/805/1609 meters for Lambert OPA 363258000. Crime checks validate address/radius, equal consecutive 90-day periods, nonnegative integer counts, category totals, twelve distinct monthly buckets and unavailable percentage handling. A 404 crime route fails; 503 is unavailable. Valid zero counts pass. These checks do not independently recompute City counts or prove in-app behavior. Does not pin mutable record counts. Empty pages can pass schema checks; unavailable sources cannot. Repeated records across pages fail but may require investigation if upstream records changed between calls. L&I row parcel identity cannot be independently checked because the current response omits that field; envelope validation is not proof of every upstream row's identity. Retrieval timestamp is not a source-update timestamp.
 
 Node fixture tests deliberately exercise success, wrong identity, malformed JSON, upstream unavailability, timeout, neighboring address and repeated pages. This is contract monitoring, not an appraisal, paid entitlement test or iOS acceptance.

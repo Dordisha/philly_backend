@@ -1,7 +1,8 @@
 import express from "express";
 import { queryCarto } from "../lib/carto.js";
+import { requirePaidAccess, resolvePaidAccess } from '../services/paidAccess.js';
 
-export function createViolationsRouter({ query = queryCarto } = {}) {
+export function createViolationsRouter({ query = queryCarto, authorize = resolvePaidAccess } = {}) {
 const router = express.Router();
 
 function riskLevelFromFlags({ activeCount, hasCourt, hasStopWork, hasUnsafe, hasHazardous }) {
@@ -100,7 +101,7 @@ router.get("/summary", async (req, res) => {
 });
 
 // GET /api/violations/details?opa=363258000&limit=200
-router.get("/details", async (req, res) => {
+router.get("/details", requirePaidAccess('pro', authorize), async (req, res) => {
   const opa = String(req.query.opa || "").trim();
   const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 200, 1), 500);
 
