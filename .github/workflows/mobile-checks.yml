@@ -3,6 +3,10 @@ on:
   pull_request:
     paths:
       - 'mobile/**'
+      # Server access/data contracts also affect existing mobile flows.
+      - 'src/routes/**'
+      - 'src/services/paidAccess.js'
+      - 'src/services/ownerAccess.js'
       - '.github/workflows/mobile-checks.yml'
   workflow_dispatch:
 permissions:

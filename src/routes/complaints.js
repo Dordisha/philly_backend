@@ -1,7 +1,7 @@
 // src/routes/complaints.js
 import express from "express";
+import { requirePaidAccess, resolvePaidAccess } from '../services/paidAccess.js';
 
-const router = express.Router();
 const CARTO_SQL_API = "https://phl.carto.com/api/v2/sql";
 
 async function carto(sql) {
@@ -38,13 +38,16 @@ function opaRequired(res) {
   });
 }
 
+export function createComplaintsRouter({ query = carto, authorize = resolvePaidAccess } = {}) {
+const router = express.Router();
+
 /**
  * ✅ Schema probe (NO system tables)
  * GET /api/complaints/columns
  */
 router.get("/columns", async (req, res) => {
   try {
-    const out = await carto(`SELECT * FROM complaints LIMIT 0`);
+    const out = await query(`SELECT * FROM complaints LIMIT 0`);
     return res.json({
       ok: true,
       fields: out.fields || {},
@@ -87,7 +90,7 @@ router.get("/summary", async (req, res) => {
       FROM base
     `;
 
-    const out = await carto(sql);
+    const out = await query(sql);
     const row = out?.rows?.[0] || {};
 
     const total = Number(row.total_count || 0);
@@ -119,13 +122,13 @@ router.get("/summary", async (req, res) => {
 });
 
 /**
- * ✅ SECOND PAGE DETAILS (NOT PAID YET)
+ * SECOND PAGE DETAILS — requires server-authorized Pro access.
  * GET /api/complaints/details?opa=...&limit=10&offset=0
  *
  * We return a "safe" common set of likely columns.
  * If any column name differs, /columns will tell us and we adjust fast.
  */
-router.get("/details", async (req, res) => {
+router.get("/details", requirePaidAccess('pro', authorize), async (req, res) => {
   const opa = cleanOpa(req.query.opa);
   if (!opa) return opaRequired(res);
 
@@ -150,7 +153,7 @@ router.get("/details", async (req, res) => {
       OFFSET ${offset}
     `;
 
-    const out = await carto(sql);
+    const out = await query(sql);
 
     return res.json({
       ok: true,
@@ -170,4 +173,7 @@ router.get("/details", async (req, res) => {
   }
 });
 
-export default router;
+return router;
+}
+
+export default createComplaintsRouter();

@@ -16,7 +16,7 @@ test('crime SQL uses exact parcel and meter distance',()=>{
 });
 test('crime route validates inputs, handles missing location and upstream failures',async t=>{
  let mode='ok',calls=0;
- const app=express();app.use('/api/crime',createCrimeRouter({now:()=>new Date('2026-11-02'),query:async sql=>{
+ const app=express();app.use('/api/crime',createCrimeRouter({authorize:()=>true,now:()=>new Date('2026-11-02'),query:async sql=>{
  calls++;if(mode==='fail')throw Error();
  if(sql.startsWith('SELECT location'))return mode==='missing'?[]:mode==='nogeo'?[{latitude:null,longitude:null}]:[{location:'CITY HALL',latitude:39.95,longitude:-75.16}];
  if(sql.startsWith('SELECT max'))return [{latest_date:'2026-11-01'}];

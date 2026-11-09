@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { queryCarto } from '../lib/carto.js';
 import { validOpa, literal } from '../lib/propertyData.js';
+import { requirePaidAccess, resolvePaidAccess } from '../services/paidAccess.js';
 const DAY = 86400000;
 const iso = d => new Date(d).toISOString().slice(0,10);
 export function summarizeCrime(rows, latest, now = new Date()) {
@@ -42,9 +43,9 @@ export function crimeSql(opa, radius, from, through) {
     AND ST_DWithin(c.the_geom::geography, (SELECT the_geom::geography FROM opa_properties_public WHERE parcel_number = ${literal(opa)} LIMIT 1), ${radius})
     GROUP BY c.dispatch_date,c.text_general_code ORDER BY c.dispatch_date`;
 }
-export function createCrimeRouter({query=queryCarto, now=()=>new Date()}={}) {
+export function createCrimeRouter({query=queryCarto, now=()=>new Date(), authorize=resolvePaidAccess}={}) {
  const router=Router();
- router.get('/', async(req,res)=>{
+ router.get('/', requirePaidAccess('ai', authorize), async(req,res)=>{
   const opa=typeof req.query.opa==='string'?req.query.opa.trim():'';
   const radius=req.query.radius_m === undefined ? 402 : Number(req.query.radius_m);
   if(!validOpa(opa)||![402,805,1609].includes(radius)) return res.status(400).json({ok:false,message:'Valid OPA and supported radius required.'});

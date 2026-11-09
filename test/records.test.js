@@ -5,7 +5,9 @@ import { createRecordsRouter, complaintsSql, nearbySalesSql } from '../src/route
 const property = { parcel_number: '363258000', location: "10 O'BRIEN ST", zip_code: '19146', total_livable_area: 1400, category_code: '1', building_code_new: '25' };
 async function api(query, run) {
   const app = express();
-  app.use('/api/records', createRecordsRouter({ query, now: () => '2026-11-01T00:00:00Z' }));
+  // These tests exercise data contracts after access is approved. The real
+  // resolver/route matrix is covered separately in paidAccess.test.js.
+  app.use('/api/records', createRecordsRouter({ query, authorize: () => true, now: () => '2026-11-01T00:00:00Z' }));
   const server = app.listen(0, '127.0.0.1');
   await new Promise(r => server.once('listening', r));
   try { await run('http://127.0.0.1:' + server.address().port + '/api/records'); }
