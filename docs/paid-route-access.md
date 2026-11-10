@@ -61,3 +61,19 @@ expiry, revocation between requests, verifier outage/malformed approval, and
 Free lookup/ownership fields/summaries. Data-contract suites explicitly supply
 test authorization so their existing matching/error/zero-count assertions
 continue to exercise data behavior. Fixture grants are not real subscriptions.
+
+
+## November 10 — malformed/conflicting registry protection
+
+A duplicated token hash now returns verification-unavailable (503) regardless
+of record ordering, including when an active record precedes a revoked record.
+No upstream query occurs. Correct the server registry to one authoritative
+record per token; do not resolve conflicts by keeping the first entry.
+Malformed subjects, revocation values, expiry types and subscription verification
+fields deny access (403). Subscription verification cannot be future-dated.
+Omitted `revoked` remains compatible; explicit `false` is accepted, while string
+or numeric values are rejected. Valid Pro/AI tier behavior is unchanged.
+
+These are registry integrity checks, not Apple signature verification or secure
+account/session issuance. Subscription timestamps/IDs still must be populated
+by the future trusted verifier. No live grants were changed or provisioned.
