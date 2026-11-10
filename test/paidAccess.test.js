@@ -161,3 +161,46 @@ test('trusted subscription records obey tier boundaries; unknown required tiers 
   assert.equal(resolvePaidAccess(authorization, 'ai', options), false);
   assert.equal(resolvePaidAccess(authorization, 'admin', options), false);
 });
+
+
+test('conflicting token records fail closed in either order on every paid route', async () => {
+  const active = { ...baseGrant, tier: 'ai' };
+  for (const conflict of [{ ...active, revoked: true }, { ...active, subject: 'other-account' }, active]) {
+    for (const grants of [[active, conflict], [conflict, active]]) {
+      await withApi(resolve(() => grants), async (get, queries) => {
+        for (const [path] of routes) {
+          const response = await get(path, { Authorization: authorization });
+          assert.equal(response.status, 503, path);
+          assert.equal(response.cache, 'no-store', path);
+          assert.ok(!JSON.stringify(response.body).includes('account'));
+        }
+        assert.equal(queries(), 0);
+      });
+    }
+  }
+});
+
+test('malformed revocation, identity and subscription timestamps cannot authorize data', async () => {
+  for (const change of [
+    { revoked: 'true' }, { revoked: 'false' }, { revoked: 0 }, { revoked: null },
+    { subject: {} }, { subject: ['account'] }, { subject: '  ' },
+    { expires_at: ['2030-01-01'] },
+    { source: 'subscription', verified_transaction_id: {}, verified_at: '2026-11-08' },
+    { source: 'subscription', verified_transaction_id: '  ', verified_at: '2026-11-08' },
+    { source: 'subscription', verified_transaction_id: 'fixture', verified_at: ['2026-11-08'] },
+    { source: 'subscription', verified_transaction_id: 'fixture', verified_at: new Date(now + 1).toISOString() },
+  ]) {
+    await withApi(resolve(() => [{ ...baseGrant, tier: 'ai', ...change }]), async (get, queries) => {
+      for (const [path] of routes) assert.equal((await get(path, { Authorization: authorization })).status, 403, path);
+      assert.equal(queries(), 0);
+    });
+  }
+});
+
+test('valid explicit unrevoked subscription and unrelated grants remain usable', () => {
+  const grant = { ...baseGrant, revoked: false, source: 'subscription', verified_transaction_id: 'fixture', verified_at: new Date(now).toISOString() };
+  const options = { registry: JSON.stringify([null, { ...baseGrant, token_sha256: 'b'.repeat(64), revoked: true }, grant]), now };
+  assert.equal(resolvePaidAccess(authorization, 'pro', options), true);
+  assert.equal(resolvePaidAccess(authorization, 'pro', { ...options, now: NaN }), false);
+  assert.equal(resolvePaidAccess({ toString: () => authorization }, 'pro', options), false);
+});
