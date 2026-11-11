@@ -30,9 +30,16 @@ class ProSubscription extends ChangeNotifier with WidgetsBindingObserver {
     _expiryTimer?.cancel();
     final data = value is Map ? value : const {};
     final end = data['expiresAt'];
-    _expires = data['active'] == true && end is num
-        ? DateTime.fromMillisecondsSinceEpoch(end.toInt())
-        : null;
+    // Reject malformed bridge timestamps before conversion. Conversion errors
+    // must not preserve the previous entitlement after its timer is cancelled.
+    _expires = null;
+    if (data['active'] == true &&
+        end is num &&
+        end.isFinite &&
+        end >= 0 &&
+        end <= 8640000000000000) {
+      _expires = DateTime.fromMillisecondsSinceEpoch(end.toInt());
+    }
     if (active) {
       _expiryTimer = Timer(_expires!.difference(DateTime.now()), () {
         _accessRevision++;

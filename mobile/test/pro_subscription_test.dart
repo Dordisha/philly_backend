@@ -139,4 +139,28 @@ void main() {
     expect(store.active, false);
   });
 
+  for (final operation in ['refresh', 'restore', 'redeem']) {
+    test('malformed $operation expiration removes existing access', () async {
+      for (final invalid in [double.nan, double.infinity, double.negativeInfinity,
+        1e20, -1e20, 'tomorrow', null]) {
+        status = {
+          'active': true,
+          'expiresAt': DateTime.now().add(const Duration(hours: 1)).millisecondsSinceEpoch,
+        };
+        await store.refresh();
+        expect(store.active, true);
+        status = {'active': true, 'expiresAt': invalid};
+        if (operation == 'restore') {
+          await store.transact(restore: true);
+        } else if (operation == 'redeem') {
+          await store.redeem();
+        } else {
+          await store.refresh();
+        }
+        expect(store.active, false, reason: '$operation accepted $invalid');
+        expect(store.busy, false);
+      }
+    });
+  }
+
 }
