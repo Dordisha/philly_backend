@@ -77,3 +77,18 @@ or numeric values are rejected. Valid Pro/AI tier behavior is unchanged.
 These are registry integrity checks, not Apple signature verification or secure
 account/session issuance. Subscription timestamps/IDs still must be populated
 by the future trusted verifier. No live grants were changed or provisioned.
+
+
+## November 12 — bounded verification wait
+
+The shared paid-access middleware now returns a generic, non-cacheable 503
+when an asynchronous verifier does not settle within 10 seconds. Late approval
+or rejection cannot invoke the data handler or send a second response. Timers
+are cleared on success, denial and failure. This bounds the response wait; it
+does not cancel an underlying verifier's I/O. The future remote Apple/session
+verifier must also impose transport deadlines and bounded concurrency.
+
+Regression tests cover stalled Pro and AI checks, late approval/rejection and
+invalid timeout configuration. Existing real-route tests retain timely
+approval, denial, malformed-result, error and Free-path coverage. This does
+not implement Apple verification or make the candidate deployable by itself.

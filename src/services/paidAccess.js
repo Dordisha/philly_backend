@@ -27,13 +27,22 @@ export function resolvePaidAccess(authorization, requiredTier = 'pro', { registr
   return true;
 }
 
-export function requirePaidAccess(tier, authorize = resolvePaidAccess) {
+export function requirePaidAccess(tier, authorize = resolvePaidAccess, { timeoutMs = 10000 } = {}) {
   if (!['pro', 'ai'].includes(tier)) throw new TypeError('Unknown access tier');
+  if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 10000) throw new TypeError('Invalid verification timeout');
   return async (req, res, next) => {
     // Neither a successful paid response nor a denial should be shared/cached.
     res.set('Cache-Control', 'no-store');
+    let timer;
     try {
-      if (await authorize(req.get('Authorization'), tier) !== true) {
+      // Bound asynchronous verification; a late result must never call next().
+      const decision = await Promise.race([
+        Promise.resolve().then(() => authorize(req.get('Authorization'), tier)),
+        new Promise((_, reject) => {
+          timer = setTimeout(() => reject(new Error('Verification timed out')), timeoutMs);
+        }),
+      ]);
+      if (decision !== true) {
         return res.status(403).json({
           ok: false,
           code: tier === 'ai' ? 'ai_required' : 'pro_required',
@@ -42,6 +51,8 @@ export function requirePaidAccess(tier, authorize = resolvePaidAccess) {
       }
     } catch {
       return res.status(503).json({ ok: false, message: 'Access verification unavailable. Please retry.' });
+    } finally {
+      clearTimeout(timer);
     }
     next();
   };
