@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import express from 'express';
-import { resolvePaidAccess } from '../src/services/paidAccess.js';
+import { resolvePaidAccess, requirePaidAccess } from '../src/services/paidAccess.js';
 import { createRecordsRouter } from '../src/routes/records.js';
 import { createCrimeRouter } from '../src/routes/crime.js';
 import { createViolationsRouter } from '../src/routes/violations.js';
@@ -203,4 +203,37 @@ test('valid explicit unrevoked subscription and unrelated grants remain usable',
   assert.equal(resolvePaidAccess(authorization, 'pro', options), true);
   assert.equal(resolvePaidAccess(authorization, 'pro', { ...options, now: NaN }), false);
   assert.equal(resolvePaidAccess({ toString: () => authorization }, 'pro', options), false);
+});
+
+
+for (const tier of ['pro', 'ai']) {
+  test(`${tier} stalled verification returns unavailable and ignores late approval/rejection`, async () => {
+    for (const lateResult of ['approve', 'reject']) {
+      let approve, reject, queries = 0, responses = 0;
+      const decision = new Promise((yes, no) => { approve = yes; reject = no; });
+      const headers = {};
+      const res = {
+        set(key, value) { headers[key] = value; },
+        status(code) { this.statusCode = code; return this; },
+        json(body) { this.body = body; responses++; return this; },
+      };
+      await requirePaidAccess(tier, () => decision, { timeoutMs: 10 })(
+        { get: () => authorization }, res, () => { queries++; });
+      assert.equal(res.statusCode, 503);
+      assert.equal(headers['Cache-Control'], 'no-store');
+      assert.deepEqual(res.body, { ok: false, message: 'Access verification unavailable. Please retry.' });
+      assert.equal(queries, 0);
+      if (lateResult === 'approve') approve(true);
+      else reject(new Error('private verifier details'));
+      await new Promise(resolve => setImmediate(resolve));
+      assert.equal(queries, 0);
+      assert.equal(responses, 1);
+    }
+  });
+}
+
+test('verification deadline cannot be disabled or extended by invalid configuration', () => {
+  for (const timeoutMs of [0, -1, NaN, Infinity, '10', 10001, 1.5]) {
+    assert.throws(() => requirePaidAccess('pro', () => true, { timeoutMs }), TypeError);
+  }
 });
