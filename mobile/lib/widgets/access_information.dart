@@ -50,11 +50,11 @@ class AccessInformationPage extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           Text(
-            'AI insights • Coming later',
+            'AI homebuyer assistant • Coming soon',
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const Text(
-            r'Planned price: $9.99/month for additional analysis and explanations. Not available to purchase yet. Public records will remain free.',
+            r'Under construction. Planned price: $12.99/month for market research, homebuying cost estimates, step-by-step guidance, and multilingual explanations. These capabilities are not available in this version. Not available to purchase yet. No payment is collected. Public records will remain free.',
           ),
           const SizedBox(height: 24),
           Text(

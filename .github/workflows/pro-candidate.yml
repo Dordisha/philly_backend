@@ -24,11 +24,11 @@ jobs:
       - run: flutter test --dart-define=PRO_PREVIEW=false
       - run: flutter test --dart-define=PRO_PREVIEW=true
       - name: Compile free records candidate
-        run: flutter build ios --simulator --debug --build-name=1.1.0 --build-number=18 --dart-define-from-file=release-settings.json --dart-define=APP_ENV=prod --dart-define=PRO_PREVIEW=false --dart-define=INTERNAL_TESTING=false
+        run: flutter build ios --simulator --debug --build-name=1.1.0 --build-number=19 --dart-define-from-file=release-settings.json --dart-define=APP_ENV=prod --dart-define=PRO_PREVIEW=false --dart-define=INTERNAL_TESTING=false
       - name: Package simulator application
-        run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphonesimulator/Runner.app PhillyScan-Free-Records-18-Simulator.zip
+        run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphonesimulator/Runner.app PhillyScan-Free-Records-19-Simulator.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: PhillyScan-Free-Records-18-Simulator
-          path: mobile/PhillyScan-Free-Records-18-Simulator.zip
+          name: PhillyScan-Free-Records-19-Simulator
+          path: mobile/PhillyScan-Free-Records-19-Simulator.zip
           retention-days: 14

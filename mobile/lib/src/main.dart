@@ -29,7 +29,7 @@ import '../widgets/pro_coming_soon.dart';
 /// API configuration lives in config/api_config.dart.
 
 /// Source archive version; this preview does not create a store build.
-const String kAppVersion = "1.1.0 (18)";
+const String kAppVersion = "1.1.0 (19)";
 
 /// Support contact
 const String kFeedbackEmail = "phillyscan.app@gmail.com";

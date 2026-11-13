@@ -29,7 +29,7 @@ class _AiComingSoonBannerState extends State<AiComingSoonBanner> {
                 const SizedBox(width: 8),
                 const Expanded(
                   child: Text(
-                    'AI insights • Coming soon',
+                    'AI homebuyer assistant • Coming soon',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -41,7 +41,7 @@ class _AiComingSoonBannerState extends State<AiComingSoonBanner> {
               ],
             ),
             const Text(
-              'Property insights and smarter questions for your agent.',
+              'Under construction. Understand the home, the costs, and your next steps—in your language.',
             ),
             TextButton(
               onPressed: () => showModalBottomSheet<void>(
@@ -60,12 +60,12 @@ class _AiComingSoonBannerState extends State<AiComingSoonBanner> {
                         ),
                         const SizedBox(height: 12),
                         const Text(
-                          '• Resale insights from comparable sales\n• Clear explanations of property records\n• Questions to ask your real-estate agent\n• Language support, planned for later',
+                          'Planned capabilities—not available in this version:\n\n• Research on similar nearby home sales\n• Estimates of buying and ownership costs\n• Step-by-step guidance for first-time buyers\n• Questions and checklists for agents and lenders\n• Explanations in Albanian, Spanish, Vietnamese, Chinese, and English',
                           style: TextStyle(height: 1.6),
                         ),
                         const SizedBox(height: 16),
                         const Text(
-                          r'Planned AI subscription: $9.99/month. Not available to purchase yet. Public records remain free.',
+                          r'Planned AI subscription: $12.99/month. Not available to purchase yet. No payment is collected. Public records remain free.',
                         ),
                         TextButton(
                           onPressed: () => Navigator.pop(context),
@@ -76,7 +76,7 @@ class _AiComingSoonBannerState extends State<AiComingSoonBanner> {
                   ),
                 ),
               ),
-              child: const Text('Learn more'),
+              child: const Text('See what’s planned'),
             ),
           ],
         ),

@@ -1,9 +1,9 @@
-PHILLY SCAN 1.1.0 (18) — FREE RECORDS
+PHILLY SCAN 1.1.0 (19) — FREE RECORDS
 
 Use the full source folder. In mobile, run PREPARE_TESTFLIGHT.command.
 Then in Xcode: select Runner, confirm signing team, choose Any iOS Device,
 Product > Archive, Distribute App > App Store Connect.
 
-This build removes $2.99 Pro. AI is coming later, planned at $9.99/month.
+This build removes $2.99 Pro. AI is coming later, planned at $12.99/month.
 No subscription is sold and no advertising is configured in this build.
 Read START-HERE.md for App Store Connect changes and device checks.

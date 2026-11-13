@@ -1,4 +1,5 @@
 import 'crime_trends_page.dart';
+import '../widgets/ai_coming_soon_banner.dart';
 import 'package:flutter/material.dart';
 import '../config/pro_preview_config.dart';
 import '../src/api_client.dart';
@@ -29,7 +30,7 @@ class FeatureMenu extends StatelessWidget {
         builder: (_) => AlertDialog(
           title: const Text('AI features are coming later'),
           content: const Text(
-            r'Planned AI subscription: $9.99/month. Not available to purchase yet. Public records remain free.',
+            r'Planned AI subscription: $12.99/month. Not available to purchase yet. Public records remain free.',
           ),
           actions: [
             TextButton(
@@ -124,25 +125,29 @@ class FeatureMenu extends StatelessWidget {
       ]),
       _heading('Neighborhood data', ''),
       _grid(context, [('Crime trends', Icons.shield_outlined, null)]),
-      _heading('AI • Coming later', r'Planned $9.99/month'),
-      _grid(context, [
-        ('Resale', Icons.trending_up, 2),
-        ('Signals', Icons.bar_chart_outlined, 3),
-      ]),
-      const SizedBox(height: 10),
-      FilledButton.icon(
-        onPressed: () => _open(context, 'Ask AI'),
-        icon: const Icon(Icons.chat_bubble_outline),
-        label: const Padding(
-          padding: EdgeInsets.all(10),
-          child: Text('Ask AI'),
+      if (!ProPreviewConfig.enabled)
+        const AiComingSoonBanner()
+      else ...[
+        _heading('AI • Coming later', r'Planned $12.99/month'),
+        _grid(context, [
+          ('Resale', Icons.trending_up, 2),
+          ('Signals', Icons.bar_chart_outlined, 3),
+        ]),
+        const SizedBox(height: 10),
+        FilledButton.icon(
+          onPressed: () => _open(context, 'Ask AI'),
+          icon: const Icon(Icons.chat_bubble_outline),
+          label: const Padding(
+            padding: EdgeInsets.all(10),
+            child: Text('Ask AI'),
+          ),
         ),
-      ),
-      const SizedBox(height: 8),
-      const Text(
-        'Public records are free. AI analysis is not available to purchase yet.',
-        style: TextStyle(fontSize: 12, color: PremiumColors.secondary),
-      ),
+        const SizedBox(height: 8),
+        const Text(
+          'Public records are free. AI analysis is not available to purchase yet.',
+          style: TextStyle(fontSize: 12, color: PremiumColors.secondary),
+        ),
+      ],
     ],
   );
 }

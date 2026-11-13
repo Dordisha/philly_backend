@@ -59,14 +59,21 @@ void main() {
       }
       expect(find.text('Your Voice Matters'), findsNothing);
       if (!ProPreviewConfig.enabled) {
-        await tester.ensureVisible(find.text('Ask AI'));
-        await tester.tap(find.text('Ask AI'));
+        expect(find.text('Ask AI'), findsNothing);
+        expect(find.text('Subscribe'), findsNothing);
+        await tester.ensureVisible(find.text('See what’s planned').last);
+        await tester.tap(find.text('See what’s planned').last);
         await tester.pumpAndSettle();
-        expect(find.text('AI features are coming later'), findsOneWidget);
+        expect(find.text('What’s planned'), findsOneWidget);
+        expect(find.textContaining(r'$12.99/month'), findsOneWidget);
+        expect(find.textContaining('No payment is collected'), findsOneWidget);
         expect(
-          find.textContaining('Not available to purchase yet'),
+          find.textContaining(
+            'Albanian, Spanish, Vietnamese, Chinese, and English',
+          ),
           findsOneWidget,
         );
+        expect(find.textContaining(r'$2.99'), findsNothing);
       }
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
