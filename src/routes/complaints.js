@@ -6,7 +6,7 @@ const CARTO_SQL_API = "https://phl.carto.com/api/v2/sql";
 
 async function carto(sql) {
   const url = `${CARTO_SQL_API}?q=${encodeURIComponent(sql)}`;
-  const res = await fetch(url, { headers: { Accept: "application/json" } });
+  const res = await fetch(url, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(15000) });
   const text = await res.text();
 
   let json;
@@ -57,107 +57,109 @@ router.get("/columns", async (req, res) => {
   }
 });
 
-/**
- * ✅ MAIN PAGE AGGREGATE
- * GET /api/complaints/summary?opa=112273500
- *
- * IMPORTANT:
- * This "complaints" table does NOT have service_name/service_request_id.
- * It appears to have complaintdate (based on common Philly complaints table patterns).
- */
+// Free aggregate of L&I complaints, distinct from public 311 service requests.
 router.get("/summary", async (req, res) => {
   const opa = cleanOpa(req.query.opa);
   if (!opa) return opaRequired(res);
 
   try {
     const sql = `
-      WITH base AS (
-        SELECT
-          opa_account_num,
-          complaintdate::timestamptz AS complaint_at,
-          COALESCE(status, '') AS status
-        FROM complaints
-        WHERE opa_account_num = '${opa}'
-      )
-      SELECT
+      SELECT complaintstatus, casestatus,
         COUNT(*)::bigint AS total_count,
-        COUNT(*) FILTER (
-          WHERE status IS NOT NULL
-          AND TRIM(status) <> ''
-          AND UPPER(status) NOT IN ('CLOSED','RESOLVED','COMPLETED')
-        )::bigint AS open_count,
-        MAX(complaint_at) AS last_activity
-      FROM base
+        MAX(complaintdate) AS last_activity
+      FROM complaints
+      WHERE opa_account_num = '${opa}'
+      GROUP BY complaintstatus, casestatus
+      ORDER BY complaintstatus NULLS LAST, casestatus NULLS LAST
     `;
-
     const out = await query(sql);
-    const row = out?.rows?.[0] || {};
-
-    const total = Number(row.total_count || 0);
-    const open = Number(row.open_count || 0);
-    const last = row.last_activity || null;
-
-    // Simple risk heuristic (tune later)
-    let risk = "Low";
-    if (open >= 3) risk = "High";
-    else if (open >= 1) risk = "Medium";
-    else if (total >= 10) risk = "Medium";
+    if (!Array.isArray(out?.rows)) throw new Error('Invalid complaints response');
+    let total = 0;
+    let last = null;
+    const statuses = out.rows.map(row => {
+      const count = Number(row.total_count);
+      if (row.total_count == null || !Number.isSafeInteger(count) || count <= 0) {
+        throw new Error('Invalid complaint count');
+      }
+      total += count;
+      if (!Number.isSafeInteger(total)) throw new Error('Invalid complaint total');
+      if (row.last_activity != null) {
+        const date = new Date(row.last_activity);
+        if (!Number.isFinite(date.getTime())) throw new Error('Invalid complaint date');
+        if (last == null || date.getTime() > Date.parse(last)) last = date.toISOString();
+      }
+      return { complaintstatus: row.complaintstatus ?? null,
+        casestatus: row.casestatus ?? null, count };
+    });
 
     return res.json({
       ok: true,
       opa,
       total_count: total,
-      open_count: open,
+      open_count: null,
       last_activity: last,
-      risk_level: risk,
+      risk_level: null,
+      status_counts: statuses,
+      status_mapping: 'unverified',
+      source: 'Philadelphia L&I complaints (CARTO complaints)',
+      note: 'Raw complaint and case statuses are separate. Open counts and risk are not inferred.',
+      retrieved_at: new Date().toISOString(),
     });
   } catch (e) {
     return res.status(500).json({
       ok: false,
       error: e.message,
       hint:
-        "Run GET /api/complaints/columns to confirm exact column names. If complaintdate/status differ, we will map them.",
+        "Complaint data is unavailable; no zero count or risk assessment is implied.",
     });
   }
 });
 
-/**
- * SECOND PAGE DETAILS — requires server-authorized Pro access.
- * GET /api/complaints/details?opa=...&limit=10&offset=0
- *
- * We return a "safe" common set of likely columns.
- * If any column name differs, /columns will tell us and we adjust fast.
- */
+// Legacy detail aliases retain raw complaint fields; case status stays separate.
 router.get("/details", requirePaidAccess('pro', authorize), async (req, res) => {
   const opa = cleanOpa(req.query.opa);
   if (!opa) return opaRequired(res);
 
-  const limit = Math.min(Math.max(parseInt(req.query.limit || "25", 10), 1), 100);
-  const offset = Math.max(parseInt(req.query.offset || "0", 10), 0);
+  const limit = req.query.limit === undefined ? 25 : Number(req.query.limit);
+  const offset = req.query.offset === undefined ? 0 : Number(req.query.offset);
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100 ||
+      !Number.isSafeInteger(offset) || offset < 0) {
+    return res.status(400).json({ ok: false, code: 'INVALID_PAGINATION' });
+  }
 
   try {
     const sql = `
       SELECT
         cartodb_id,
         complaintdate::timestamptz AS complaintdate,
-        status,
+        opa_account_num, complaintnumber, casenumber,
+        complaintstatus, casestatus,
+        complaintstatus AS status,
         address,
-        complaint,
-        complainttype,
-        agency,
-        department
+        complaintcodename AS complaint,
+        complaintcode AS complainttype,
+        unitresponsible AS department,
+        complaintresolution_date,
+        ticket_num_311,
+        systemofrecord
       FROM complaints
       WHERE opa_account_num = '${opa}'
-      ORDER BY complaintdate DESC NULLS LAST
+      ORDER BY complaintdate DESC NULLS LAST, cartodb_id DESC
       LIMIT ${limit}
       OFFSET ${offset}
     `;
 
     const out = await query(sql);
 
+    if (!Array.isArray(out?.rows)) throw new Error('Invalid complaints response');
+    if (out.rows.some(row => String(row.opa_account_num) !== opa)) {
+      throw new Error('Complaint property identity mismatch');
+    }
     return res.json({
       ok: true,
       opa,
+      source: 'Philadelphia L&I complaints (CARTO complaints)',
+      retrieved_at: new Date().toISOString(),
       limit,
       offset,
       count: out?.rows?.length || 0,
@@ -168,7 +170,7 @@ router.get("/details", requirePaidAccess('pro', authorize), async (req, res) => 
       ok: false,
       error: e.message,
       hint:
-        "Run GET /api/complaints/columns to confirm exact column names. Then we will align complaint/status/type fields.",
+        "Complaint data is unavailable; retry later.",
     });
   }
 });
