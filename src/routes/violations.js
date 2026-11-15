@@ -103,9 +103,12 @@ router.get("/summary", async (req, res) => {
 // GET /api/violations/details?opa=363258000&limit=200
 router.get("/details", requirePaidAccess('pro', authorize), async (req, res) => {
   const opa = String(req.query.opa || "").trim();
-  const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 200, 1), 500);
+  const integerParam = (value, fallback) => value === undefined ? fallback :
+    typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : NaN;
+  const limit = integerParam(req.query.limit, 200);
+  const offset = integerParam(req.query.offset, 0);
 
-  if (!/^\d{6,12}$/.test(opa)) {
+  if (!/^\d{9}$/.test(opa)) {
     return res.status(400).json({
       ok: false,
       code: "OPA_REQUIRED",
@@ -113,9 +116,16 @@ router.get("/details", requirePaidAccess('pro', authorize), async (req, res) => 
     });
   }
 
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > 500 ||
+      !Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(offset + limit)) {
+    return res.status(400).json({ ok: false, code: 'INVALID_PAGINATION',
+      message: 'A limit from 1 to 500 and a nonnegative integer offset are required.' });
+  }
+
   try {
     const sql = `
       SELECT
+        cartodb_id, opa_account_num,
         casenumber,
         casestatus,
         caseprioritydesc,
@@ -132,23 +142,39 @@ router.get("/details", requirePaidAccess('pro', authorize), async (req, res) => 
         violationcodetitle
       FROM violations
       WHERE opa_account_num = '${opa}'
-      ORDER BY violationdate DESC NULLS LAST
-      LIMIT ${limit}
+      ORDER BY violationdate DESC NULLS LAST, cartodb_id DESC
+      LIMIT ${limit + 1} OFFSET ${offset}
     `.trim();
 
-    const data = { rows: await query(sql) };
+    const rows = await query(sql);
+    if (!Array.isArray(rows) || rows.length > limit + 1) throw new Error('Invalid violation response');
+    const ids = new Set();
+    for (const row of rows) {
+      if (!row || String(row.opa_account_num) !== opa ||
+          !Number.isSafeInteger(row.cartodb_id) || row.cartodb_id < 1 || ids.has(row.cartodb_id)) {
+        throw new Error('Violation identity unavailable');
+      }
+      ids.add(row.cartodb_id);
+    }
+    const page = rows.slice(0, limit);
 
     return res.json({
       ok: true,
       opa,
-      count: Array.isArray(data?.rows) ? data.rows.length : 0,
-      rows: data?.rows || [],
+      count: page.length,
+      rows: page,
+      limit, offset,
+      has_more: rows.length > limit,
+      next_offset: rows.length > limit ? offset + limit : null,
+      source: { table: 'violations', url: 'https://cityofphiladelphia.github.io/carto-api-explorer/#violations' },
+      retrieved_at: new Date().toISOString(),
+      note: 'Raw L&I case and violation statuses are separate. Records can change between pages.',
     });
   } catch (e) {
-    return res.status(e.status || 503).json({
+    return res.status(e.status === 504 ? 504 : 503).json({
       ok: false,
       code: "CARTO_FAILED",
-      message: String(e?.message || e),
+      message: "Violation details are unavailable. Please retry.",
     });
   }
 });
