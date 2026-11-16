@@ -1,46 +1,74 @@
 import 'api_client.dart';
 
+class ViolationStatusCount {
+  final String? caseStatus;
+  final String? violationStatus;
+  final int count;
+
+  const ViolationStatusCount({
+    required this.caseStatus,
+    required this.violationStatus,
+    required this.count,
+  });
+}
+
 class ViolationSummary {
   final String opa;
-  final int activeCount;
-  final int historicalCount;
+  final int totalCount;
+  final List<ViolationStatusCount> statuses;
   final DateTime? lastActivity;
-  final String riskLevel;
-  final bool hasCourt;
-  final bool hasStopWork;
-  final bool hasUnsafeStructure;
-  final bool hasHazardous;
 
   ViolationSummary({
     required this.opa,
-    required this.activeCount,
-    required this.historicalCount,
+    required this.totalCount,
+    required this.statuses,
     required this.lastActivity,
-    required this.riskLevel,
-    required this.hasCourt,
-    required this.hasStopWork,
-    required this.hasUnsafeStructure,
-    required this.hasHazardous,
   });
 
   factory ViolationSummary.fromJson(Map<String, dynamic> json) {
-    final flags = (json['flags'] as Map?)?.cast<String, dynamic>() ?? {};
+    Never invalid() => throw ApiException(
+      message: 'Enforcement records are unavailable. Please retry.',
+    );
+    final total = json['total_count'];
+    final rows = json['status_counts'];
     final last = json['last_activity'];
-
+    if (json['ok'] != true || json['summary_version'] != 2 ||
+        json['status_mapping'] != 'unverified' ||
+        json['opa'] is! String ||
+        !RegExp(r'^\d{9}$').hasMatch(json['opa'] as String) ||
+        total is! int || total < 0 || total > 9007199254740991 || rows is! List ||
+        !json.containsKey('last_activity') ||
+        (last != null && (last is! String || DateTime.tryParse(last) == null))) {
+      invalid();
+    }
+    var sum = 0;
+    final statuses = <ViolationStatusCount>[];
+    final groups = <(String?, String?)>{};
+    for (final row in rows) {
+      if (row is! Map || !row.containsKey('casestatus') ||
+          !row.containsKey('violationstatus') ||
+          (row['casestatus'] != null && row['casestatus'] is! String) ||
+          (row['violationstatus'] != null && row['violationstatus'] is! String) ||
+          row['count'] is! int || (row['count'] as int) < 1) {
+        invalid();
+      }
+      final caseStatus = row['casestatus'] as String?;
+      final violationStatus = row['violationstatus'] as String?;
+      if (!groups.add((caseStatus, violationStatus))) invalid();
+      sum += row['count'] as int;
+      if (sum > 9007199254740991) invalid();
+      statuses.add(ViolationStatusCount(
+        caseStatus: caseStatus,
+        violationStatus: violationStatus,
+        count: row['count'] as int,
+      ));
+    }
+    if (sum != total || (total == 0 && last != null)) invalid();
     return ViolationSummary(
-      opa: (json['opa'] ?? '').toString(),
-      activeCount: (json['active_count'] ?? 0) is int
-          ? json['active_count']
-          : int.tryParse('${json['active_count']}') ?? 0,
-      historicalCount: (json['historical_count'] ?? 0) is int
-          ? json['historical_count']
-          : int.tryParse('${json['historical_count']}') ?? 0,
-      lastActivity: last == null ? null : DateTime.tryParse(last.toString()),
-      riskLevel: (json['risk_level'] ?? 'Low').toString(),
-      hasCourt: flags['has_court'] == true,
-      hasStopWork: flags['has_stop_work'] == true,
-      hasUnsafeStructure: flags['has_unsafe_structure'] == true,
-      hasHazardous: flags['has_hazardous'] == true,
+      opa: json['opa'] as String,
+      totalCount: total,
+      statuses: List.unmodifiable(statuses),
+      lastActivity: last == null ? null : DateTime.parse(last as String),
     );
   }
 }
@@ -108,15 +136,11 @@ class ViolationsService {
 
   Future<ViolationSummary> fetchSummary({required String opa}) async {
     final data = await _client.get('/api/violations/summary', {'opa': opa});
-    if (data['ok'] != true ||
-        data['active_count'] is! num ||
-        data['historical_count'] is! num ||
-        data['flags'] is! Map) {
-      throw ApiException(
-        message: 'Enforcement records are unavailable. Please retry.',
-      );
+    final summary = ViolationSummary.fromJson(data);
+    if (summary.opa != opa) {
+      throw ApiException(message: 'Enforcement property identity is unavailable.');
     }
-    return ViolationSummary.fromJson(data);
+    return summary;
   }
 
   Future<List<ViolationRow>> fetchDetails({

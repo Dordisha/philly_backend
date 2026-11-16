@@ -43,9 +43,10 @@ void main() {
       await tester.ensureVisible(find.text('Scan'));
       await tester.tap(find.text('Scan'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Property Condition & Enforcement'));
-      expect(find.text('Active: 1'), findsOneWidget);
-      expect(find.text('History: 2'), findsOneWidget);
+      await tester.ensureVisible(find.text('Recorded L&I Violations'));
+      expect(find.text('Records: 3'), findsOneWidget);
+      expect(find.textContaining('Active:'), findsNothing);
+      expect(find.textContaining('History:'), findsNothing);
       expect(find.textContaining('Center City Core'), findsOneWidget);
       for (final pair in [
         ('Copy Address', '123 TEST ST'),

@@ -94,7 +94,7 @@ class _ViolationSummaryCardState extends State<ViolationSummaryCard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  "Property Condition & Enforcement",
+                  "Recorded L&I Violations",
                   style: TextStyle(
                     color: PremiumColors.ink,
                     fontSize: 16,
@@ -106,18 +106,29 @@ class _ViolationSummaryCardState extends State<ViolationSummaryCard> {
                   spacing: 10,
                   runSpacing: 8,
                   children: [
-                    _pill(
-                      "Active",
-                      s.activeCount.toString(),
-                      strong: s.activeCount > 0,
-                    ),
-                    _pill("History", s.historicalCount.toString()),
-
+                    _pill("Records", s.totalCount.toString()),
                     _pill("Last", _fmtDate(s.lastActivity)),
                   ],
                 ),
                 const SizedBox(height: 12),
-                _flagsRow(s),
+                const Text(
+                  'Records are not unique cases or a current condition assessment. '
+                  'Active violations and risk are not inferred.',
+                  style: TextStyle(color: PremiumColors.secondary),
+                ),
+                const SizedBox(height: 8),
+                if (s.totalCount == 0)
+                  const Text('No records returned for this OPA. This is not a safety assessment.')
+                else
+                  ...s.statuses.map((status) => Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Text(
+                      'Case: ${status.caseStatus ?? "Not reported"} · '
+                      'Violation: ${status.violationStatus ?? "Not reported"} · '
+                      'Records: ${status.count}',
+                    ),
+                  )),
+                const Text('Source: Philadelphia L&I violations (CARTO).'),
                 const SizedBox(height: 14),
                 SizedBox(
                   width: double.infinity,
@@ -162,27 +173,6 @@ class _ViolationSummaryCardState extends State<ViolationSummaryCard> {
     );
   }
 
-  Widget _flagsRow(ViolationSummary s) {
-    final flags = <String>[];
-    if (s.hasHazardous) flags.add("Hazardous");
-    if (s.hasCourt) flags.add("Court");
-    if (s.hasStopWork) flags.add("Stop Work");
-    if (s.hasUnsafeStructure) flags.add("Unsafe Structure");
-
-    if (flags.isEmpty) {
-      return const Text(
-        "No flags reported in returned records.",
-        style: TextStyle(color: PremiumColors.secondary),
-      );
-    }
-
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: flags.map((f) => _tag(f)).toList(),
-    );
-  }
-
   static Widget _pill(String k, String v, {bool strong = false}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
@@ -203,18 +193,4 @@ class _ViolationSummaryCardState extends State<ViolationSummaryCard> {
     );
   }
 
-  static Widget _tag(String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF4F2ED),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFE1DED7)),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(color: PremiumColors.secondary, fontSize: 12),
-      ),
-    );
-  }
 }
