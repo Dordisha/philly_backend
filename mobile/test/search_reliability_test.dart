@@ -32,14 +32,9 @@ class ControlledViolations extends ViolationsService {
     if (fail) throw ApiException(message: 'Unavailable');
     return ViolationSummary(
       opa: opa,
-      activeCount: 1,
-      historicalCount: 2,
+      totalCount: 3,
+      statuses: const [ViolationStatusCount(caseStatus: null, violationStatus: null, count: 3)],
       lastActivity: null,
-      riskLevel: 'Low',
-      hasCourt: false,
-      hasStopWork: false,
-      hasUnsafeStructure: false,
-      hasHazardous: false,
     );
   }
 }
@@ -145,7 +140,7 @@ void main() {
       service.fail = false;
       await tester.tap(find.text('Retry enforcement'));
       await tester.pumpAndSettle();
-      expect(find.text('Active: 1'), findsOneWidget);
+      expect(find.text('Records: 3'), findsOneWidget);
       await card('222222222');
       await tester.pumpAndSettle();
       expect(service.requested, ['111111111', '111111111', '222222222']);
