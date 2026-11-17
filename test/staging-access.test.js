@@ -13,8 +13,8 @@ function fixture(change = () => {}) {
     assert.equal(options.redirect, 'error');
     assert.ok(options.signal instanceof AbortSignal);
     assert.ok(!options.headers.Authorization || options.headers.Authorization === 'Bearer invalid-release-audit');
-    const free = u.pathname !== '/api/records/facts';
-    const ai = u.pathname === '/api/records/facts';
+    const free = u.pathname !== '/api/records/signals';
+    const ai = u.pathname === '/api/records/signals';
     const r = { status: free ? 200 : 403, cache: 'no-store', body: free ?
       { ok: true, commit: sha, opa: '363258000', result: { opa: '363258000' } } :
       { ok: false, code: ai ? 'ai_required' : 'pro_required', message: ai ? 'AI Premium access required.' : 'Pro subscription required.' } };
@@ -90,7 +90,7 @@ test('timeouts and network errors remain unavailable; malformed JSON fails witho
 test('one failed probe does not hide a later access bypass', async () => {
   const r = await checkStagingAccess(fixture((r, u) => {
     if (u.pathname === '/api/owners') r.status = 404;
-    if (u.pathname === '/api/records/facts') r.status = 200;
+    if (u.pathname === '/api/records/signals') r.status = 200;
   }));
   assert.equal(r.failed, 4);
   assert.equal(r.passed, 16);

@@ -23,8 +23,8 @@ const property = {
   owner_1: 'FIXTURE OWNER', total_livable_area: 1400,
   building_code_new: '25', category_code: '1', latitude: 39.93, longitude: -75.17,
 };
-const routes = [['/api/records/facts', 'ai']];
-const publicRoutes = ['/api/records/311', '/api/records/violations', '/api/records/sales', '/api/crime', '/api/violations/details', '/api/complaints/details', '/api/owners'];
+const routes = [['/api/records/signals', 'ai']];
+const publicRoutes = ['/api/records/facts', '/api/records/311', '/api/records/violations', '/api/records/sales', '/api/crime', '/api/violations/details', '/api/complaints/details', '/api/owners'];
 
 async function withApi(authorize, run) {
   let queries = 0;
@@ -242,6 +242,7 @@ test('all public records bypass obsolete subscriptions, even with broken verific
         const r = await get(path, headers);
         assert.equal(r.status, 200, path);
         assert.equal(r.body.ok, true, path);
+        if (path === '/api/records/facts') assert.equal(r.body.signals, undefined);
       }
     }
   });

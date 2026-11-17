@@ -7,7 +7,7 @@ const paidRoutes = [
   ['/api/records/311', null], ['/api/records/violations', null],
   ['/api/complaints/details', null], ['/api/violations/details', null],
   ['/api/owners', null], ['/api/records/sales', null],
-  ['/api/records/facts', 'ai'], ['/api/crime', null],
+  ['/api/records/signals', 'ai'], ['/api/crime', null],
 ];
 
 // Fixed staging destination; no real credential, mutation, redirect or retry.

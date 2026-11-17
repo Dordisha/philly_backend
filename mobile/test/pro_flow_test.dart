@@ -136,7 +136,7 @@ void main() {
         '/api/records/violations',
         if (ProPreviewConfig.enabled) ...[
           '/api/records/sales',
-          '/api/records/facts',
+          '/api/records/signals',
         ],
       });
       await tester.pumpWidget(const SizedBox());
