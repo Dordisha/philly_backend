@@ -1,8 +1,7 @@
 import { queryCarto } from './carto.js';
 import { literal, validOpa } from './propertyData.js';
 
-// Internal data adapter only. Do not mount behind an unauthenticated route.
-// Authentication + current server-verified entitlements (#2/#28) must precede use.
+// Public recorded-owner search. Validate names and bound every page.
 export function ownerNameVariants(value) {
   if (typeof value !== 'string' || /[\x00-\x1f]/.test(value)) throw new TypeError('Recorded owner name required');
   const name = value.trim().replace(/\s+/g, ' ').toUpperCase();

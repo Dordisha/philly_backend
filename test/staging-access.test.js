@@ -13,18 +13,19 @@ function fixture(change = () => {}) {
     assert.equal(options.redirect, 'error');
     assert.ok(options.signal instanceof AbortSignal);
     assert.ok(!options.headers.Authorization || options.headers.Authorization === 'Bearer invalid-release-audit');
-    const free = u.pathname === '/_root' || u.pathname.endsWith('/summary') || u.pathname.endsWith('/search');
-    const ai = ['/api/crime', '/api/records/sales', '/api/records/facts'].includes(u.pathname);
+    const free = u.pathname !== '/api/records/facts';
+    const ai = u.pathname === '/api/records/facts';
     const r = { status: free ? 200 : 403, cache: 'no-store', body: free ?
       { ok: true, commit: sha, opa: '363258000', result: { opa: '363258000' } } :
       { ok: false, code: ai ? 'ai_required' : 'pro_required', message: ai ? 'AI Premium access required.' : 'Pro subscription required.' } };
+    if (u.pathname === '/api/owners') r.body.rows = [];
     change(r, u, free);
     return { status: r.status, headers: new Headers({ 'cache-control': r.cache }), json: async () => r.body };
   };
   return { fetchImpl, calls: () => calls };
 }
 
-test('audit checks eight paid routes twice plus four Free/deployment controls without real credentials', async () => {
+test('audit checks seven public record routes and one interpretation route twice plus controls without real credentials', async () => {
   const f = fixture();
   const r = await checkStagingAccess({ ...f, expectedCommit: sha });
   assert.equal(f.calls(), 20);
@@ -37,9 +38,9 @@ test('audit checks eight paid routes twice plus four Free/deployment controls wi
 test('public paid responses fail even with an empty body; missing route and outage never count as denial', async () => {
   for (const status of [200, 204, 401, 404, 429, 500, 503]) {
     const r = await checkStagingAccess(fixture((r, u, free) => { if (!free) { r.status = status; r.body = {}; } }));
-    assert.equal(r.passed, 4);
-    assert.equal(r.failed + r.unavailable, 16);
-    assert.equal(r.unavailable, [429, 500, 503].includes(status) ? 16 : 0);
+    assert.equal(r.passed, 18);
+    assert.equal(r.failed + r.unavailable, 2);
+    assert.equal(r.unavailable, [429, 500, 503].includes(status) ? 2 : 0);
   }
 });
 
@@ -52,8 +53,8 @@ test('a 403 requires the tier contract, no-store and no data leakage', async () 
     r => { r.body.message = 'private fixture'; },
   ]) {
     const r = await checkStagingAccess(fixture((r, u, free) => { if (!free) mutate(r); }));
-    assert.equal(r.passed, 4);
-    assert.equal(r.failed, 16);
+    assert.equal(r.passed, 18);
+    assert.equal(r.failed, 2);
     assert.ok(!JSON.stringify(r).includes('private fixture'));
   }
 });
@@ -89,7 +90,7 @@ test('timeouts and network errors remain unavailable; malformed JSON fails witho
 test('one failed probe does not hide a later access bypass', async () => {
   const r = await checkStagingAccess(fixture((r, u) => {
     if (u.pathname === '/api/owners') r.status = 404;
-    if (u.pathname === '/api/crime') r.status = 200;
+    if (u.pathname === '/api/records/facts') r.status = 200;
   }));
   assert.equal(r.failed, 4);
   assert.equal(r.passed, 16);

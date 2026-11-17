@@ -22,9 +22,8 @@ class ImmediateProperty extends ApiService {
 
 void main() {
   testWidgets(
-    'Home Pro scans once and opens all four live-data features without another Scan tap',
+    'Free records open without a subscription; preview also opens experimental sections',
     (tester) async {
-      if (!ProPreviewConfig.enabled) return;
       final api = ImmediateProperty();
       final violations = ControlledViolations()..fail = false;
       final seen = <String>[];
@@ -94,12 +93,16 @@ void main() {
           ),
         ),
       );
-      await tester.tap(find.text('Open Pro • Live data'));
+      await tester.tap(find.text('Explore property • Free'));
       await tester.pumpAndSettle();
       expect(api.scans, 1);
       expect(find.byType(ProOverviewPage), findsOneWidget);
       expect(seen, isEmpty); // Fetch a section only when opened.
-      for (final label in ['311', 'L&I', 'Resale', 'Signals']) {
+      for (final label in [
+        '311',
+        'L&I',
+        if (ProPreviewConfig.enabled) ...['Resale', 'Signals'],
+      ]) {
         final scroll = find
             .descendant(
               of: find.byType(ListView),
@@ -131,8 +134,10 @@ void main() {
       expect(seen.toSet(), {
         '/api/records/311',
         '/api/records/violations',
-        '/api/records/sales',
-        '/api/records/facts',
+        if (ProPreviewConfig.enabled) ...[
+          '/api/records/sales',
+          '/api/records/facts',
+        ],
       });
       await tester.pumpWidget(const SizedBox());
       client.close();

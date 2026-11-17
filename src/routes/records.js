@@ -77,8 +77,9 @@ export function propertySignals(property, at) {
 export function createRecordsRouter({ query = queryCarto, now = () => new Date().toISOString(), authorize = resolvePaidAccess } = {}) {
   const router = Router();
   for (const section of ['311', 'violations', 'sales', 'facts']) {
-    const tier = ['311', 'violations'].includes(section) ? 'pro' : 'ai';
-    router.get('/' + section, requirePaidAccess(tier, authorize), async (req, res) => {
+    // Only the interpretation layer is paid; City records remain public.
+    const gates = section === 'facts' ? [requirePaidAccess('ai', authorize)] : [];
+    router.get('/' + section, ...gates, async (req, res) => {
       const opa = typeof req.query.opa === 'string' ? req.query.opa.trim() : '';
       if (!validOpa(opa)) return res.status(400).json({ ok: false, message: 'A valid OPA is required.' });
       const limit = Math.max(1, pageNumber(req.query.limit, 25, 50));

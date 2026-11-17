@@ -1,27 +1,4 @@
-PROPOSED NAMES ONLY — NOT ACTIVE APPLE OFFER CODES
-PROBRO77 reserved for Dorian.
-Exactly six letters and two digits per code.
-Recommended: each custom code limited to one redemption, Free offer, no automatic renewal. Free duration must be chosen before Apple setup.
-
-PROBRO77
-SCANME42
-HOUSEY19
-BRICKY63
-ROOFUS28
-KEYPAL84
-NESTER35
-DOORZY91
-HOMIEZ56
-WALLUP23
-LOTLOL68
-PHILLY47
-NORENT32
-BIGKEY85
-YARDIE16
-PORCHY74
-LOFTYY29
-NESTUP53
-DOORGO96
-CASAHA41
-
-Create these in App Store Connect for the configured Pro subscription. Do not distribute as working codes before Apple creation and testing.
+SUPERSEDED — November 6, 2026
+The $2.99 Pro tier and its planned offers have been withdrawn.
+Public-record features are free. Do not activate the previous Pro offer codes.
+AI subscription offers are not configured; AI remains unavailable for purchase.

@@ -4,10 +4,10 @@ import { pathToFileURL } from 'node:url';
 const HOST = 'https://philly-scan-repair-test.onrender.com';
 const OPA = '363258000';
 const paidRoutes = [
-  ['/api/records/311', 'pro'], ['/api/records/violations', 'pro'],
-  ['/api/complaints/details', 'pro'], ['/api/violations/details', 'pro'],
-  ['/api/owners', 'pro'], ['/api/records/sales', 'ai'],
-  ['/api/records/facts', 'ai'], ['/api/crime', 'ai'],
+  ['/api/records/311', null], ['/api/records/violations', null],
+  ['/api/complaints/details', null], ['/api/violations/details', null],
+  ['/api/owners', null], ['/api/records/sales', null],
+  ['/api/records/facts', 'ai'], ['/api/crime', null],
 ];
 
 // Fixed staging destination; no real credential, mutation, redirect or retry.
@@ -53,8 +53,9 @@ export async function checkStagingAccess({ fetchImpl = fetch, timeoutMs = 15000,
         if (expectedCommit) assert.equal(body.commit, expectedCommit, 'Hosted/source commit mismatch');
       } else {
         assert.equal(body.ok, true);
-        assert.equal(String(item.name === 'free-lookup' ? body.result?.opa : body.opa), OPA, 'Free property identity mismatch');
-        if (item.name !== 'free-lookup') assert.equal(body.rows, undefined, 'Free summary includes detail rows');
+        if (!item.name.includes('/api/owners')) assert.equal(String(item.name === 'free-lookup' ? body.result?.opa : body.opa ?? body.property?.parcel_number), OPA, 'Free property identity mismatch');
+        if (item.name.includes('/api/owners')) assert.ok(Array.isArray(body.rows), 'Owner rows missing');
+        if (item.name.startsWith('free-') && item.name !== 'free-lookup') assert.equal(body.rows, undefined, 'Free summary includes detail rows');
       }
       results.push({ name: item.name, outcome: 'passed', status });
     } catch (error) {
@@ -69,7 +70,7 @@ export async function checkStagingAccess({ fetchImpl = fetch, timeoutMs = 15000,
   return { checked_at: new Date().toISOString(), host: HOST, deployed_commit: deployedCommit,
     expected_commit: expectedCommit || null,
     source_match: expectedCommit ? deployedCommit === expectedCommit : null,
-    scope: 'Negative access and Free controls only; purchase/restore and runtime acceptance not tested',
+    scope: 'Public records must be free; interpretation must deny unverified access. Purchase/restore and runtime acceptance not tested',
     results, passed: results.filter(r => r.outcome === 'passed').length,
     failed: results.filter(r => r.outcome === 'failed').length,
     unavailable: results.filter(r => r.outcome === 'unavailable').length };
