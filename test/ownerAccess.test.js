@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
 import { ownerRouter } from '../src/routes/owners.js';
+import { searchOwnerProperties } from '../src/lib/ownerSearch.js';
 
 async function withServer(search, run) {
   const app = express();
@@ -22,6 +23,17 @@ test('owner search is free without authorization and retains bounded pagination'
     assert.equal(response.status, 200);
     assert.equal(response.headers.get('cache-control'), 'no-store');
     assert.equal((await response.json()).rows.length, 1);
+  });
+});
+
+test('malformed upstream owner rows return retryable 503, not invalid-name 400', async () => {
+  await withServer((name, options) => searchOwnerProperties(name, options, {
+    query: async () => [null],
+  }), async url => {
+    const response = await fetch(url + '?name=Dorian%20Dishani');
+    assert.equal(response.status, 503);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    assert.deepEqual(await response.json(), {ok: false, message: 'Owner records unavailable. Please retry.'});
   });
 });
 

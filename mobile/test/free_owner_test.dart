@@ -67,6 +67,10 @@ void main() {
     },
   );
   for (final invalid in [
+    null,
+    {'parcel_number': '123456789', 'location': '', 'owner_1': 'TEST OWNER'},
+    {'parcel_number': '123456789', 'location': 123, 'owner_1': 'TEST OWNER'},
+    {'parcel_number': '123456789', 'location': 'WRONG PROPERTY', 'owner_1': 'TEST OWNER', 'owner_2': 123},
     {'parcel_number': 'bad', 'location': 'WRONG PROPERTY', 'owner_1': 'TEST OWNER'},
     {'parcel_number': '123456789', 'location': 'WRONG PROPERTY', 'owner_1': 'OTHER OWNER'},
   ]) {
@@ -81,5 +85,71 @@ void main() {
       client.close();
     });
   }
+
+  testWidgets('free pagination retries the same cursor and opens the exact OPA', (tester) async {
+    Map<String, dynamic> record(int index) => {
+      'parcel_number': (100000000 + index).toString(),
+      'location': '$index TEST ST',
+      'owner_1': 'OTHER PERSON',
+      'owner_2': 'TEST OWNER',
+    };
+    var pageTwoCalls = 0;
+    final client = ApiClient(client: MockClient((request) async {
+      expect(request.headers['Authorization'], isNull);
+      final sql = request.url.queryParameters['q']!;
+      if (!sql.contains('parcel_number >')) {
+        return http.Response(jsonEncode({'rows': List.generate(26, (i) => record(i + 1))}), 200);
+      }
+      expect(sql, contains("parcel_number > '100000025'"));
+      pageTwoCalls++;
+      if (pageTwoCalls == 1) return http.Response('unavailable', 503);
+      return http.Response(jsonEncode({'rows': [record(26)]}), 200);
+    }));
+    String? opened;
+    await tester.pumpWidget(MaterialApp(home: Builder(builder: (context) =>
+      TextButton(onPressed: () async {
+        opened = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) =>
+          OwnerSearchPage(owner: 'TEST OWNER', client: client)));
+      }, child: const Text('Open owners')))));
+    await tester.tap(find.text('Open owners'));
+    await tester.pumpAndSettle();
+    expect(find.text('26 TEST ST'), findsNothing);
+    await tester.ensureVisible(find.text('Load more'));
+    await tester.tap(find.text('Load more'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Retry'));
+    expect(find.text('Owner records unavailable. Please retry.'), findsOneWidget);
+    expect(find.text('No matching properties found.'), findsNothing);
+    await tester.tap(find.text('Retry'));
+    await tester.pumpAndSettle();
+    expect(pageTwoCalls, 2);
+    expect(find.text('Retry'), findsNothing);
+    expect(find.text('Load more'), findsNothing);
+    await tester.ensureVisible(find.text('26 TEST ST'));
+    await tester.tap(find.text('26 TEST ST'));
+    await tester.pumpAndSettle();
+    expect(opened, '100000026');
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+    client.close();
+  });
+
+  testWidgets('oversized and invalid lookahead pages show unavailable without partial results', (tester) async {
+    final valid = {'parcel_number': '123456789', 'location': 'VALID TEST ST', 'owner_1': 'TEST OWNER'};
+    for (final rows in [
+      List.generate(27, (i) => {...valid, 'parcel_number': (100000000 + i).toString()}),
+      [...List.generate(25, (i) => {...valid, 'parcel_number': (100000000 + i).toString()}),
+        {'parcel_number': '100000025', 'location': ' ', 'owner_1': 'TEST OWNER'}],
+    ]) {
+      final client = ApiClient(client: MockClient((_) async => http.Response(jsonEncode({'rows': rows}), 200)));
+      await tester.pumpWidget(MaterialApp(home: OwnerSearchPage(owner: 'TEST OWNER', client: client)));
+      await tester.pumpAndSettle();
+      expect(find.text('VALID TEST ST'), findsNothing);
+      expect(find.text('Owner records unavailable. Please retry.'), findsOneWidget);
+      expect(find.text('No matching properties found.'), findsNothing);
+      await tester.pumpWidget(const SizedBox());
+      client.close();
+    }
+  });
 
 }

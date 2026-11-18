@@ -72,8 +72,16 @@ class _OwnerSearchPageState extends State<OwnerSearchPage> {
             "SELECT DISTINCT ON (parcel_number) parcel_number, location, owner_1, owner_2 FROM opa_properties_public WHERE (UPPER(REGEXP_REPLACE(TRIM(owner_1), '\\s+', ' ', 'g')) IN ($literals) OR UPPER(REGEXP_REPLACE(TRIM(owner_2), '\\s+', ' ', 'g')) IN ($literals)) AND parcel_number ~ '^[0-9]{9}\$' ${cursor == null ? '' : 'AND parcel_number > ${quote(cursor!)}'} ORDER BY parcel_number, location, owner_1, owner_2 LIMIT 26",
       });
       final found = data['rows'] as List;
+      if (found.length > 26) throw const FormatException();
       String previous = cursor ?? '';
       for (final row in found) {
+        if (row is! Map ||
+            row['location'] is! String ||
+            (row['location'] as String).trim().isEmpty ||
+            ![row['owner_1'], row['owner_2']]
+                .every((n) => n == null || n is String)) {
+          throw const FormatException();
+        }
         final opa = row['parcel_number'].toString();
         final matches = [row['owner_1'], row['owner_2']]
             .whereType<String>()

@@ -14,3 +14,9 @@ Version 1.1.0+20 identifies source only. No download, simulator runtime acceptan
 5. Offline/retry and property changes do not show stale records. Privacy/signing/crash visibility review before release.
 
 No approved denominator, no iOS pass percentage. Production merge/deployment, App Store submission and charges require owner final approval. Apple purchases/authentication are future AI gates, not blockers to free City records. Render control plane requires confirmed existing workspace; read-only hosted checks are independent evidence.
+
+## November 18 owner-page integrity follow-up
+
+Source version 1.1.0+21 extends PR #59, preserving its free-records reconciliation. Both the direct City mobile path and server owner search reject oversized pages, blank/non-text addresses and malformed ownership fields before showing any results, including lookahead. Malformed upstream records return retryable unavailable (503), not a bad-name (400) response. Valid empty results remain distinct from unavailable. No subscription gate added.
+
+Regression cases cover malformed/null rows, addresses and lookahead; the mobile pagination case uses co-owner matches, a failed second page, retry with the same cursor, and exact OPA navigation without authorization. These are fixture-based automated checks, not simulator acceptance or proof of deployment. The #19 proposed scenarios and #17 delivery gates above still apply. No new package is produced.
