@@ -114,10 +114,10 @@ void main() {
     await tester.tap(find.text('Open owners'));
     await tester.pumpAndSettle();
     expect(find.text('26 TEST ST'), findsNothing);
-    await tester.ensureVisible(find.text('Load more'));
+    await tester.scrollUntilVisible(find.text('Load more'), 400, maxScrolls: 30);
     await tester.tap(find.text('Load more'));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Retry'));
+    await tester.scrollUntilVisible(find.text('Retry'), -400, maxScrolls: 30);
     expect(find.text('Owner records unavailable. Please retry.'), findsOneWidget);
     expect(find.text('No matching properties found.'), findsNothing);
     await tester.tap(find.text('Retry'));
@@ -125,7 +125,7 @@ void main() {
     expect(pageTwoCalls, 2);
     expect(find.text('Retry'), findsNothing);
     expect(find.text('Load more'), findsNothing);
-    await tester.ensureVisible(find.text('26 TEST ST'));
+    await tester.scrollUntilVisible(find.text('26 TEST ST'), 400, maxScrolls: 30);
     await tester.tap(find.text('26 TEST ST'));
     await tester.pumpAndSettle();
     expect(opened, '100000026');
