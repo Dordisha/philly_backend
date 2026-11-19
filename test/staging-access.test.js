@@ -19,6 +19,12 @@ function fixture(change = () => {}) {
       { ok: true, commit: sha, opa: '363258000', result: { opa: '363258000' } } :
       { ok: false, code: ai ? 'ai_required' : 'pro_required', message: ai ? 'AI Premium access required.' : 'Pro subscription required.' } };
     if (u.pathname === '/api/owners') r.body.rows = [];
+    if (u.pathname === '/api/violations/summary') Object.assign(r.body, {
+      summary_version: 2, status_mapping: 'unverified', total_count: 2,
+      status_counts: [{ casestatus: 'CLOSED', violationstatus: 'OPEN', count: 2 }],
+      last_activity: '2026-01-01T00:00:00Z',
+      active_count: null, historical_count: null, risk_level: null,
+    });
     change(r, u, free);
     return { status: r.status, headers: new Headers({ 'cache-control': r.cache }), json: async () => r.body };
   };
@@ -94,4 +100,47 @@ test('one failed probe does not hide a later access bypass', async () => {
   }));
   assert.equal(r.failed, 4);
   assert.equal(r.passed, 16);
+});
+
+test('healthy legacy and malformed L&I summaries fail release compatibility independently of source stamp', async () => {
+  const mutations = [
+    b => { delete b.summary_version; },
+    b => { b.summary_version = 1; },
+    b => { b.status_mapping = 'verified'; },
+    b => { b.total_count = '2'; },
+    b => { b.total_count = 3; },
+    b => { b.status_counts = null; },
+    b => { b.status_counts = [null]; },
+    b => { delete b.status_counts[0].casestatus; },
+    b => { b.status_counts[0].count = -1; },
+    b => { b.status_counts.push({ ...b.status_counts[0] }); b.total_count = 4; },
+    b => { b.status_counts[0].count = Number.MAX_SAFE_INTEGER + 1; },
+    b => { delete b.last_activity; },
+    b => { b.last_activity = 'invalid'; },
+    b => { b.active_count = 2; },
+    b => { b.historical_count = 0; },
+    b => { b.risk_level = 'Low'; },
+    b => { b.total_count = 0; b.status_counts = []; },
+  ];
+  for (const mutate of mutations) {
+    const r = await checkStagingAccess({ ...fixture((r, u) => {
+      if (u.pathname === '/api/violations/summary') mutate(r.body);
+    }), expectedCommit: sha });
+    assert.equal(r.source_match, true);
+    assert.equal(r.failed, 1);
+    assert.equal(r.passed, 19);
+    assert.equal(r.results.find(x => x.name === 'free-violations').outcome, 'failed');
+  }
+});
+
+test('valid zero and unknown raw L&I statuses remain compatible without risk inference', async () => {
+  for (const zero of [true, false]) {
+    const r = await checkStagingAccess(fixture((r, u) => {
+      if (u.pathname !== '/api/violations/summary') return;
+      r.body.last_activity = null;
+      r.body.total_count = zero ? 0 : 2;
+      r.body.status_counts = zero ? [] : [{ casestatus: null, violationstatus: 'UNREVIEWED', count: 2 }];
+    }));
+    assert.equal(r.passed, 20);
+  }
 });

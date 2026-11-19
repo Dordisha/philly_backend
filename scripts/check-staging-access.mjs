@@ -3,12 +3,37 @@ import { pathToFileURL } from 'node:url';
 
 const HOST = 'https://philly-scan-repair-test.onrender.com';
 const OPA = '363258000';
-const paidRoutes = [
+const recordRoutes = [
   ['/api/records/311', null], ['/api/records/violations', null],
   ['/api/complaints/details', null], ['/api/violations/details', null],
   ['/api/owners', null], ['/api/records/sales', null],
   ['/api/records/signals', 'ai'], ['/api/crime', null],
 ];
+
+// Independent consumer-contract check: a healthy old server is not compatible
+// with the version-2 mobile summary parser. Do not infer active/risk from status.
+function checkViolationSummary(body) {
+  assert.equal(body.summary_version, 2);
+  assert.equal(body.status_mapping, 'unverified');
+  assert.ok(Number.isSafeInteger(body.total_count) && body.total_count >= 0);
+  assert.ok(Array.isArray(body.status_counts));
+  assert.ok(body.last_activity === null ||
+    typeof body.last_activity === 'string' && Number.isFinite(Date.parse(body.last_activity)));
+  for (const field of ['active_count', 'historical_count', 'risk_level']) assert.equal(body[field], null);
+  const groups = new Set();
+  let total = 0;
+  for (const row of body.status_counts) {
+    assert.ok(row && [row.casestatus, row.violationstatus].every(v => v === null || typeof v === 'string'));
+    assert.ok(Number.isSafeInteger(row.count) && row.count > 0);
+    const key = JSON.stringify([row.casestatus, row.violationstatus]);
+    assert.ok(!groups.has(key));
+    groups.add(key);
+    total += row.count;
+    assert.ok(Number.isSafeInteger(total));
+  }
+  assert.equal(total, body.total_count);
+  if (total === 0) assert.equal(body.last_activity, null);
+}
 
 // Fixed staging destination; no real credential, mutation, redirect or retry.
 // This negative-access audit cannot establish purchase/restore or release readiness.
@@ -19,7 +44,7 @@ export async function checkStagingAccess({ fetchImpl = fetch, timeoutMs = 15000,
     { name: 'deployment', path: '/_root' },
     { name: 'free-lookup', path: `/api/opa/search?opa=${OPA}` },
     ...['complaints', 'violations'].map(section => ({ name: `free-${section}`, path: `/api/${section}/summary?opa=${OPA}` })),
-    ...paidRoutes.flatMap(([path, tier]) => ['anonymous', 'forged'].map(mode => ({
+    ...recordRoutes.flatMap(([path, tier]) => ['anonymous', 'forged'].map(mode => ({
       name: `${mode}:${path}`, tier,
       path: `${path}?opa=${OPA}&name=Dorian%20Dishani&limit=1&radius_m=402` +
         (mode === 'forged' ? '&tier=ai&PRO_PREVIEW=true&INTERNAL_TESTING=true' : ''),
@@ -56,6 +81,7 @@ export async function checkStagingAccess({ fetchImpl = fetch, timeoutMs = 15000,
         if (!item.name.includes('/api/owners')) assert.equal(String(item.name === 'free-lookup' ? body.result?.opa : body.opa ?? body.property?.parcel_number), OPA, 'Free property identity mismatch');
         if (item.name.includes('/api/owners')) assert.ok(Array.isArray(body.rows), 'Owner rows missing');
         if (item.name.startsWith('free-') && item.name !== 'free-lookup') assert.equal(body.rows, undefined, 'Free summary includes detail rows');
+        if (item.name === 'free-violations') checkViolationSummary(body);
       }
       results.push({ name: item.name, outcome: 'passed', status });
     } catch (error) {
