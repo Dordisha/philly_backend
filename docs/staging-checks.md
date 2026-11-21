@@ -2,11 +2,12 @@
 
 Run `node scripts/check-staging.mjs` after the cycle's source changes and regression tests finish. No cron, services, subscriptions, dashboard feeds or alerts are created. Fixed TEST host; twelve sequential GETs, 45-second deadline each, no redirects/retries. Exit 1 on failure or unavailable source. Output contains the hosted commit, timestamp, latency and individual outcomes, not raw owner/complaint data.
 
-This checks the existing staging data contract, not paid-route authorization.
-The November 9 protected source has not been deployed. Its paid routes require
-authenticated access; do not treat anonymous successes on older staging as a
-release pass. See [paid-route-access.md](paid-route-access.md) for integration
-and rollout blockers before replacing the staging source.
+This checks the existing staging data contract. Under the November 13 owner direction,
+all City records (including owner search and crime aggregates) are free.
+Run `node scripts/check-staging-access.mjs` as well to verify the version-2 summary
+contract, free record routes and separate future AI interpretation protection.
+An older server passing the data checker is not proof of candidate compatibility.
+See [paid-route-access.md](paid-route-access.md) for current rollout blockers.
 
 Covers deployment identity, exact OPA lookup, 311 address/ZIP, L&I identifiers/raw statuses, sales radius/subject exclusion, facts parcel, second 311 page, invalid identifiers, and crime at 402/805/1609 meters for Lambert OPA 363258000. Crime checks validate address/radius, equal consecutive 90-day periods, nonnegative integer counts, category totals, twelve distinct monthly buckets and unavailable percentage handling. A 404 crime route fails; 503 is unavailable. Valid zero counts pass. These checks do not independently recompute City counts or prove in-app behavior. Does not pin mutable record counts. Empty pages can pass schema checks; unavailable sources cannot. Repeated records across pages fail but may require investigation if upstream records changed between calls. L&I row parcel identity cannot be independently checked because the current response omits that field; envelope validation is not proof of every upstream row's identity. Retrieval timestamp is not a source-update timestamp.
 
@@ -29,3 +30,34 @@ Do not execute until the owner approves the scenario list. Environment: iPhone 1
 | IOS-09 | Future Apple sandbox and AI implementation, controlled test account | #10 purchase/restore/revoke/30-analysis limit matrix must be separately expanded and approved before execution; currently blocked |
 
 Record passed/failed/blocked/skipped per approved case with evidence. Overall acceptance requires >=95% of all approved cases passed; blocked/skipped remain in denominator and critical property/payment/data-integrity failures prevent release. No approved denominator yet, so no overall iOS pass rate can be reported.
+
+
+## November 21 — current free-release native review clarification (#19)
+
+This supersedes the historical Pro gates in IOS-01/08 above: City records and owner
+search must open without a subscription in both preview modes; AI is informational
+coming soon, with no purchase. Test the exact final PR #59 commit and matching hosted
+backend, not the historical PR #4 baseline. Scenario approval is still pending;
+administrative closure of #19 is not approval or runtime evidence.
+
+Within the existing exact-property/L&I and failure review, record a comprehension
+observation (not a new case, denominator or release gate): can a first-time buyer
+identify the selected address, distinguish a completed zero-result lookup from an
+unsuccessful lookup, and find the official source when available?
+
+- Keep the selected address and exact property account number (OPA) matched to the
+  response. Do not substitute a neighboring property. Introduce the expanded OPA
+  label only where the number is useful; no additional identifier field is added.
+- For a valid zero response, observe: “This lookup returned no City violation records
+  for this property. This is not proof of safety or condition.”
+- For a failed lookup, observe the unavailable message and Retry enforcement action;
+  no zero count should be rendered. Retry after restoring the source.
+- Successful summary loads show plain-text attribution “Source: Philadelphia L&I
+  violations (CARTO).” This pinned card does not implement a clickable source link.
+  Inspect any links implemented elsewhere separately and record their actual
+  destinations; do not count plain text as link navigation.
+- Preserve raw City statuses, technical error/empty distinctions, source attribution
+  and the existing safety/condition caution. No translation work or outreach added.
+
+Record observed comprehension separately from the approved scenario results. No
+native pass is claimed from source inspection or widget tests.
