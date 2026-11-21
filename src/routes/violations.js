@@ -1,8 +1,7 @@
 import express from "express";
 import { queryCarto } from "../lib/carto.js";
-import { requirePaidAccess, resolvePaidAccess } from '../services/paidAccess.js';
 
-export function createViolationsRouter({ query = queryCarto, authorize = resolvePaidAccess } = {}) {
+export function createViolationsRouter({ query = queryCarto } = {}) {
 const router = express.Router();
 
 // Free raw-status aggregate. Case closure is not proof of violation resolution.
@@ -66,7 +65,8 @@ router.get("/summary", async (req, res) => {
 });
 
 // GET /api/violations/details?opa=363258000&limit=200
-router.get("/details", requirePaidAccess('pro', authorize), async (req, res) => {
+router.get("/details", async (req, res) => {
+  res.set("Cache-Control", "no-store");
   const opa = String(req.query.opa || "").trim();
   const integerParam = (value, fallback) => value === undefined ? fallback :
     typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : NaN;

@@ -39,3 +39,16 @@ test('empty is distinct from unavailable; results disclose coverage and ambiguit
   assert.match(empty.note, /different people/); assert.match(empty.note, /Philadelphia/);
   await assert.rejects(searchOwnerProperties('Dorian Dishani', {}, {query: async () => {throw Error('outage');}}));
 });
+
+test('malformed pages, addresses and ownership fields are unavailable, never input errors', async () => {
+  for (const rows of [null, {}, [null], [42], [[]],
+    [{...row('100000001'), location: '  '}],
+    [{...row('100000001'), location: 123}],
+    [{...row('100000001'), owner_2: {name: 'OTHER OWNER'}}],
+    [row('100000001'), row('100000002'), row('100000003')],
+  ]) {
+    await assert.rejects(run(rows, {limit: 1}), error => error instanceof Error && !(error instanceof TypeError));
+  }
+  // An invalid lookahead must not make a partial page appear trustworthy.
+  await assert.rejects(run([row('100000001'), {...row('100000002'), location: ''}], {limit: 1}));
+});

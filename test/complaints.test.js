@@ -84,8 +84,8 @@ test('invalid OPA and pagination never query upstream', async () => {
   });
 });
 
-test('details retain server authorization before any upstream read', async () => {
-  await withApi(async () => { assert.fail('Unexpected upstream query'); }, async get => {
-    assert.equal((await get('details?opa=363258000')).status,403);
+test('public complaint details ignore obsolete access denial', async () => {
+  await withApi(async () => ({rows:[]}), async get => {
+    assert.equal((await get('details?opa=363258000')).status,200);
   }, async () => false);
 });

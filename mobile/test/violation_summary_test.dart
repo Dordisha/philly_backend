@@ -66,11 +66,11 @@ void main() {
       await tester.pumpAndSettle();
       if (i == 0) {
         expect(find.text('Records: 0'), findsOneWidget);
-        expect(find.textContaining('This is not a safety assessment'), findsOneWidget);
+        expect(find.textContaining('This is not proof of safety or condition'), findsOneWidget);
       } else if (i == 1) {
         expect(find.text('Case: Not reported · Violation: Not reported · Records: 2'), findsOneWidget);
       } else {
-        expect(find.textContaining('Enforcement records unavailable'), findsOneWidget);
+        expect(find.textContaining('We couldn’t load City violation records'), findsOneWidget);
         expect(find.text('Records: 0'), findsNothing);
       }
       await tester.pumpWidget(const SizedBox());

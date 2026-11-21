@@ -1,6 +1,5 @@
 // src/routes/complaints.js
 import express from "express";
-import { requirePaidAccess, resolvePaidAccess } from '../services/paidAccess.js';
 
 const CARTO_SQL_API = "https://phl.carto.com/api/v2/sql";
 
@@ -38,7 +37,7 @@ function opaRequired(res) {
   });
 }
 
-export function createComplaintsRouter({ query = carto, authorize = resolvePaidAccess } = {}) {
+export function createComplaintsRouter({ query = carto } = {}) {
 const router = express.Router();
 
 /**
@@ -116,7 +115,8 @@ router.get("/summary", async (req, res) => {
 });
 
 // Legacy detail aliases retain raw complaint fields; case status stays separate.
-router.get("/details", requirePaidAccess('pro', authorize), async (req, res) => {
+router.get("/details", async (req, res) => {
+  res.set("Cache-Control", "no-store");
   const opa = cleanOpa(req.query.opa);
   if (!opa) return opaRequired(res);
 

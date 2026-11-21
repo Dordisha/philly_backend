@@ -1,8 +1,7 @@
 import { queryCarto } from './carto.js';
 import { literal, validOpa } from './propertyData.js';
 
-// Internal data adapter only. Do not mount behind an unauthenticated route.
-// Authentication + current server-verified entitlements (#2/#28) must precede use.
+// Public recorded-owner search. Validate names and bound every page.
 export function ownerNameVariants(value) {
   if (typeof value !== 'string' || /[\x00-\x1f]/.test(value)) throw new TypeError('Recorded owner name required');
   const name = value.trim().replace(/\s+/g, ' ').toUpperCase();
@@ -35,8 +34,18 @@ export async function searchOwnerProperties(name, options = {}, { query = queryC
   const variants = ownerNameVariants(name);
   const limit = options.limit ?? 25;
   const rows = await query(sql);
+  // A malformed source response is an outage, not invalid user input. Check the
+  // whole page (including lookahead) before exposing any property for navigation.
+  if (!Array.isArray(rows) || rows.length > limit + 1) {
+    throw new Error('Invalid owner result page');
+  }
   let previous = options.after || '';
   for (const row of rows) {
+    if (!row || typeof row !== 'object' || Array.isArray(row) ||
+        typeof row.location !== 'string' || !row.location.trim() ||
+        ![row.owner_1, row.owner_2].every(n => n == null || typeof n === 'string')) {
+      throw new Error('Invalid owner result record');
+    }
     const opa = String(row.parcel_number ?? '');
     const matches = [row.owner_1, row.owner_2].some(n => typeof n === 'string' && variants.includes(n.trim().replace(/\s+/g, ' ').toUpperCase()));
     if (!validOpa(opa) || opa <= previous || !row.location || !matches) {

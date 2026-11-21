@@ -23,12 +23,8 @@ const property = {
   owner_1: 'FIXTURE OWNER', total_livable_area: 1400,
   building_code_new: '25', category_code: '1', latitude: 39.93, longitude: -75.17,
 };
-const routes = [
-  ['/api/records/311', 'pro'], ['/api/records/violations', 'pro'],
-  ['/api/violations/details', 'pro'], ['/api/complaints/details', 'pro'],
-  ['/api/owners', 'pro'], ['/api/records/sales', 'ai'],
-  ['/api/records/facts', 'ai'], ['/api/crime', 'ai'],
-];
+const routes = [['/api/records/signals', 'ai']];
+const publicRoutes = ['/api/records/facts', '/api/records/311', '/api/records/violations', '/api/records/sales', '/api/crime', '/api/violations/details', '/api/complaints/details', '/api/owners'];
 
 async function withApi(authorize, run) {
   let queries = 0;
@@ -80,12 +76,12 @@ test('all paid routes deny unauthenticated/spoofed/preview requests before upstr
   });
 });
 
-test('server Pro grants open Pro details only; AI grants include Pro without moving crime into Pro', async () => {
+test('legacy Pro grants cannot unlock the AI interpretation layer', async () => {
   for (const tier of ['pro', 'ai']) {
     await withApi(resolve(() => [{ ...baseGrant, tier }]), async (get, queries) => {
       for (const [path, required] of routes) {
         const before = queries();
-        const allowed = required === 'pro' || tier === 'ai';
+        const allowed = tier === required;
         const r = await get(path, { Authorization: authorization });
         assert.equal(r.status, allowed ? 200 : 403, `${tier}: ${path}`);
         assert.equal(r.cache, 'no-store', path);
@@ -236,4 +232,18 @@ test('verification deadline cannot be disabled or extended by invalid configurat
   for (const timeoutMs of [0, -1, NaN, Infinity, '10', 10001, 1.5]) {
     assert.throws(() => requirePaidAccess('pro', () => true, { timeoutMs }), TypeError);
   }
+});
+
+
+test('all public records bypass obsolete subscriptions, even with broken verification or forged headers', async () => {
+  await withApi(() => { throw Error('Public records must not resolve entitlements'); }, async get => {
+    for (const path of publicRoutes) {
+      for (const headers of [{}, { Authorization: 'Bearer invalid', 'X-Tier': 'pro' }]) {
+        const r = await get(path, headers);
+        assert.equal(r.status, 200, path);
+        assert.equal(r.body.ok, true, path);
+        if (path === '/api/records/facts') assert.equal(r.body.signals, undefined);
+      }
+    }
+  });
 });

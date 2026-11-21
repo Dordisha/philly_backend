@@ -1,3 +1,11 @@
+# 1.1.0 (19) — Free launch candidate
+
+- All public-record features remain free; no Pro purchase flow.
+- Production AI feature buttons replaced with an informational Coming soon card.
+- Planned AI homebuyer research is $12.99/month; no purchase or AI service available yet.
+- Planned languages and buying-cost guidance described without claiming availability.
+- Xcode build number follows Flutter; Mac preparation runs analysis and free-mode tests.
+
 ## 1.1.0-preview.8 (11)
 
 - Hide Schools from the feature menu; deferred to January 2027 data validation, otherwise drop it.

@@ -71,13 +71,13 @@ test('legacy L&I empty results are distinct from upstream failures and timeouts'
     });
   }
 });
-test('legacy L&I reauthorizes each page before querying the source', async () => {
+test('legacy L&I pages stay free after obsolete access is revoked', async () => {
   let allowed = true, calls = 0;
   await api(async () => { calls++; return [row]; }, async get => {
     assert.equal((await get()).status, 200);
     allowed = false;
     const r = await get(`opa=${opa}&offset=1`);
-    assert.equal(r.status, 403); assert.equal(r.body.code, 'pro_required');
-    assert.equal(calls, 1); assert.equal(r.cache, 'no-store');
+    assert.equal(r.status, 200); assert.deepEqual(r.body.rows, [row]);
+    assert.equal(calls, 2); assert.equal(r.cache, 'no-store');
   }, () => allowed);
 });

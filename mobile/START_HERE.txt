@@ -1,25 +1,9 @@
-PHILLY SCAN 1.1.0-preview.8 (11)
+PHILLY SCAN 1.1.0 (19) — FREE RECORDS
 
-This preview adds native iOS notification code. Keep your previous working project
-as a backup. Use the FULL source folder for this preview, not just the lib folder.
+Use the full source folder. In mobile, run PREPARE_TESTFLIGHT.command.
+Then in Xcode: select Runner, confirm signing team, choose Any iOS Device,
+Product > Archive, Distribute App > App Store Connect.
 
-Fresh checkout, in the mobile folder:
-  flutter pub get
-  flutter build ios --config-only --simulator --debug --dart-define=APP_ENV=test --dart-define=PRO_PREVIEW=true
-  cd ios
-  pod install
-  open Runner.xcworkspace
-
-Choose Runner and an iPhone simulator, then Run. Do not open the workspace before
-preparing the generated configuration and Pods on your Mac.
-
-If a compiled simulator artifact is available, unzip it to Runner.app and drag it
-onto a running iPhone Simulator. It is not a Mac app; do not double-click it.
-
-Debug permits test access without payment. Profile/release stay locked.
-This source adds the update gate and notification plumbing; the existing live backend
-has not been deployed with it. No mandatory update is active and no push has been sent.
-Actual APNs testing needs Apple capability/provisioning, server secrets and a signed
-physical iPhone build. See ../docs/updates-and-announcements.md for setup.
-The approved green/gold app icon is now installed in the iOS asset catalog.
-Crime trends now use the PPD API through the new backend route (deployment required). Schools and AI answers remain unconnected.
+This build removes $2.99 Pro. AI is coming later, planned at $12.99/month.
+No subscription is sold and no advertising is configured in this build.
+Read START-HERE.md for App Store Connect changes and device checks.
