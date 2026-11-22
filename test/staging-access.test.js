@@ -18,7 +18,11 @@ function fixture(change = () => {}) {
     const r = { status: free ? 200 : 403, cache: 'no-store', body: free ?
       { ok: true, commit: sha, opa: '363258000', result: { opa: '363258000' } } :
       { ok: false, code: ai ? 'ai_required' : 'pro_required', message: ai ? 'AI Premium access required.' : 'Pro subscription required.' } };
-    if (u.pathname === '/api/owners') r.body.rows = [];
+    if (u.pathname === '/api/owners') Object.assign(r.body, {
+      rows: [], has_more: false, next_cursor: null,
+      source: { table: 'opa_properties_public', url: 'https://cityofphiladelphia.github.io/carto-api-explorer/#opa_properties_public' },
+      retrieved_at: '2026-11-22T10:00:00Z', note: 'Same-name matches may be different people.',
+    });
     if (u.pathname === '/api/violations/summary') Object.assign(r.body, {
       summary_version: 2, status_mapping: 'unverified', total_count: 2,
       status_counts: [{ casestatus: 'CLOSED', violationstatus: 'OPEN', count: 2 }],
@@ -143,4 +147,54 @@ test('valid zero and unknown raw L&I statuses remain compatible without risk inf
     }));
     assert.equal(r.passed, 20);
   }
+});
+
+const ownerRow = (opa = '363258000') => ({ parcel_number: opa, location: '1539 S LAMBERT ST', owner_1: 'DISHANI DORIAN', owner_2: null });
+
+test('owner audit rejects unrelated, malformed, duplicate and inconsistent pages without exposing names', async () => {
+  for (const mutate of [
+    b => { b.rows = [null]; },
+    b => { b.rows[0].parcel_number = '123'; },
+    b => { b.rows[0].location = ' '; },
+    b => { b.rows[0].owner_1 = 'PRIVATE UNRELATED'; },
+    b => { b.rows[0].owner_2 = 42; },
+    b => { b.rows.push(ownerRow()); },
+    b => { b.rows.unshift(ownerRow('999999999')); },
+    b => { b.rows = Array.from({length: 26}, (_, i) => ownerRow(String(363258000 + i))); },
+    b => { b.has_more = 'false'; },
+    b => { b.has_more = true; b.next_cursor = '363258000'; },
+    b => { b.next_cursor = '363258000'; },
+    b => { b.source.table = 'unrelated'; },
+    b => { b.retrieved_at = 'invalid'; },
+    b => { delete b.note; },
+  ]) {
+    const r = await checkStagingAccess(fixture((r, u) => {
+      if (u.pathname !== '/api/owners') return;
+      r.body.rows = [ownerRow()]; mutate(r.body);
+    }));
+    assert.equal(r.failed, 2);
+    assert.equal(r.passed, 18);
+    assert.ok(!JSON.stringify(r).includes('PRIVATE UNRELATED'));
+  }
+});
+
+test('owner audit accepts exact co-owner and reversed names, valid empty and full continuation pages', async () => {
+  for (const rows of [[], [ownerRow()], [{ ...ownerRow(), owner_1: null, owner_2: ' Dorian  Dishani ' }],
+    Array.from({length: 25}, (_, i) => ownerRow(String(363258000 + i)))]) {
+    const r = await checkStagingAccess(fixture((r, u) => {
+      if (u.pathname !== '/api/owners') return;
+      Object.assign(r.body, { rows, has_more: rows.length === 25,
+        next_cursor: rows.length === 25 ? rows.at(-1).parcel_number : null });
+    }));
+    assert.equal(r.passed, 20);
+  }
+});
+
+test('owner continuation cursor must equal the last returned OPA', async () => {
+  const r = await checkStagingAccess(fixture((r, u) => {
+    if (u.pathname !== '/api/owners') return;
+    r.body.rows = Array.from({length: 25}, (_, i) => ownerRow(String(363258000 + i)));
+    r.body.has_more = true; r.body.next_cursor = '999999999';
+  }));
+  assert.equal(r.failed, 2);
 });

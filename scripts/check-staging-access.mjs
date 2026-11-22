@@ -35,6 +35,35 @@ function checkViolationSummary(body) {
   if (total === 0) assert.equal(body.last_activity, null);
 }
 
+// Independent hosted API contract; does not prove the mobile direct-City flow.
+function checkOwnerPage(body) {
+  assert.ok(Array.isArray(body.rows) && body.rows.length <= 25);
+  assert.equal(typeof body.has_more, 'boolean');
+  assert.equal(body.source?.table, 'opa_properties_public');
+  assert.equal(body.source?.url, 'https://cityofphiladelphia.github.io/carto-api-explorer/#opa_properties_public');
+  assert.ok(typeof body.retrieved_at === 'string' && Number.isFinite(Date.parse(body.retrieved_at)));
+  assert.ok(typeof body.note === 'string' && body.note.trim());
+  let previous = '';
+  for (const row of body.rows) {
+    assert.ok(row && typeof row === 'object' && !Array.isArray(row));
+    const opa = String(row.parcel_number ?? '');
+    assert.match(opa, /^[0-9]{9}$/);
+    assert.ok(opa > previous, 'Owner OPAs must be unique and ordered');
+    assert.ok(typeof row.location === 'string' && row.location.trim());
+    assert.ok([row.owner_1, row.owner_2].every(n => n === null || typeof n === 'string'));
+    assert.ok([row.owner_1, row.owner_2].some(n => typeof n === 'string' &&
+      ['DORIAN DISHANI', 'DISHANI DORIAN'].includes(n.trim().replace(/\s+/g, ' ').toUpperCase())),
+    'Recorded owner or co-owner must match the requested name');
+    previous = opa;
+  }
+  if (body.has_more) {
+    assert.equal(body.rows.length, 25);
+    assert.equal(body.next_cursor, previous);
+  } else {
+    assert.equal(body.next_cursor, null);
+  }
+}
+
 // Fixed staging destination; no real credential, mutation, redirect or retry.
 // This negative-access audit cannot establish purchase/restore or release readiness.
 export async function checkStagingAccess({ fetchImpl = fetch, timeoutMs = 15000, expectedCommit } = {}) {
@@ -79,7 +108,7 @@ export async function checkStagingAccess({ fetchImpl = fetch, timeoutMs = 15000,
       } else {
         assert.equal(body.ok, true);
         if (!item.name.includes('/api/owners')) assert.equal(String(item.name === 'free-lookup' ? body.result?.opa : body.opa ?? body.property?.parcel_number), OPA, 'Free property identity mismatch');
-        if (item.name.includes('/api/owners')) assert.ok(Array.isArray(body.rows), 'Owner rows missing');
+        if (item.name.includes('/api/owners')) checkOwnerPage(body);
         if (item.name.startsWith('free-') && item.name !== 'free-lookup') assert.equal(body.rows, undefined, 'Free summary includes detail rows');
         if (item.name === 'free-violations') checkViolationSummary(body);
       }

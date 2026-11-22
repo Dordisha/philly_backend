@@ -36,3 +36,12 @@ Follow the proposed iPhone 17 Pro Max scenarios in
 Do not deliver a simulator package or deploy either side of an incompatible
 app/server contract based on this audit alone. Final production/submission
 approval remains required.
+
+The owner API probes validate a bounded page of unique ascending nine-digit OPAs,
+nonblank addresses, matching recorded owner or co-owner (both simple name orders),
+source attribution, retrieval date, ambiguity note and consistent continuation
+cursor. Empty success requires explicit end-of-results metadata. This is a
+first-page API check, not proof of complete ownership coverage, cross-page
+stability, identity certainty or native navigation. The current mobile owner
+screen queries City CARTO directly; backend API success does not validate that
+separate transport, which still requires the approved native review.
