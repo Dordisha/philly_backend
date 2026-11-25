@@ -48,6 +48,7 @@ jobs:
       - run: flutter pub get
       - name: Require matched live staging before native checks
         run: |
+          set -euo pipefail
           mkdir -p delivery
           node ../scripts/check-simulator-host.mjs "$(git rev-parse HEAD)" | tee delivery/host-check.json
       - name: Boot iPhone 17 Pro Max

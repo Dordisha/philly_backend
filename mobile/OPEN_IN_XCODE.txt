@@ -1,6 +1,8 @@
-PHILLY SCAN 1.1.0 (23) — RELEASE PREPARATION
+PHILLY SCAN 1.1.0 (24) — RELEASE PREPARATION
 
-For the replacement project, unzip PhillyScan-23-Xcode-Signing.zip and
+The summary section is removed; other app sections are unchanged.
+
+For the replacement project, unzip PhillyScan-24-Xcode-Signing.zip and
 double-click PhillyScan.xcodeproj inside the extracted folder.
 Select Runner > Signing & Capabilities > Team: Dorian Dishani.
 Choose Any iOS Device (arm64), then Product > Archive.
