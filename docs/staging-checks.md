@@ -1,5 +1,76 @@
 # Read-only staging checks
 
+## Current build 24 release review — November 25, 2026
+
+This section supersedes conflicting summary-card, Pro-gate, old-build and
+"no package ready" instructions below. Older material remains as history.
+
+Delivered app: **1.1.0 (24)** at
+`2688de44e53a7dde6d2e3a7c92837f79373cfaee`. The subsequent
+`2c9c575e882b991e26e93a38325bfd5ba624cb36` changes only CI error propagation
+and opening instructions, not app/native/backend/dependency inputs.
+[Delivery evidence and hashes](https://github.com/Dordisha/philly_backend/issues/18#issuecomment-7152239763).
+
+The owner removed only the recorded-violation summary and its automatic request.
+Do not restore it, require its zero/error copy or comprehension observation, or
+deploy a backend solely to satisfy that removed UI. Keep separate L&I/311 details,
+Zillow, free owner/co-owner search, crime, property facts and copy actions.
+
+### Actual retained-feature destinations
+
+Source inspection at the delivered commit establishes the following routing.
+It does **not** establish current server availability or an in-app pass.
+
+| Feature | Candidate destination | Required evidence |
+|---|---|---|
+| Address suggestion / selected-property lookup | Configured API host, `/api/opa/suggest` and `/api/opa/search` | Correct address and OPA; owner-result navigation must retain exact OPA |
+| Separate property records including 311/L&I | Configured API host, `/api/records/{section}` | Correct selected property, raw statuses/IDs, pagination, completed-empty versus error, attribution |
+| Crime | Configured API host, `/api/crime` | Exact OPA/address and 402/805/1609m radii; compare real City counts and periods |
+| Owner/co-owner search | Direct `https://phl.carto.com/api/v2/sql`, `opa_properties_public` | Recorded owner/co-owner, conservative name matching, pagination/deduplication and exact-property navigation |
+| Zillow | Retained outbound UI action | Verify actual destination from the final app; not a claim of licensed listing data |
+
+The signing package's `release-settings.json` sets `APP_ENV=prod`,
+`PRO_PREVIEW=false`, `INTERNAL_TESTING=false`, with no API override.
+`ApiConfig.prodBaseUrl` is **https://philly-backend-main.onrender.com**.
+Do not substitute the other production host or successful TEST-host results for
+this package's production acceptance. The delivered simulator uses TEST; its
+success is separate from release-host acceptance.
+
+### Interpret existing audit results correctly
+
+- `check-staging.mjs` remains a 12-check, fixed-TEST-host data audit. It is not a
+  production or native test and cannot independently recompute City crime counts.
+- `check-staging-access.mjs` remains a 20-check broader backend audit. Its
+  `free-violations` summary-v2 contract is a legacy/backend check, **not a build24
+  UI release dependency**. Report it separately; never change a failure into a pass
+  or reuse the old denominator as a retained-feature acceptance score.
+- Likewise, hosted `/api/owners` checks do not exercise the actual direct-City
+  mobile owner search. Do not gate that free screen on obsolete Pro authorization.
+- Preserve genuinely protected future AI interpretation checks separately.
+  AI remains informational coming soon, planned $12.99/month, without purchase.
+
+### Existing #19 review, reconciled to summary removal
+
+The proposed five groups remain: (1) exact property, copy and separate311/L&I;
+(2) free owner/co-owner pagination/navigation; (3) Schools hidden, AI coming soon,
+no purchase; (4) all three crime radii against City counts; (5) offline/retry and
+property switching without stale records. Remove summary-only steps from group1.
+Comprehension of retained-record empty/error states and available official sources
+may be observed within that review, not added as a new gate.
+
+Dorian accepted working builds22/23. Build24 has one focused iPhone17ProMax native
+case, fresh extracted Simulator launch and standalone Xcode archive evidence.
+Neither that case nor the earlier owner acceptance establishes build24 owner
+acceptance, the full five-case denominator or >=95% overall success. Execute only
+authorized scenarios; record passed/failed/blocked/skipped and actual runtime.
+
+Apple-team signing, Organizer validation, physical-device/TestFlight acceptance,
+retained-feature production checks, privacy/Store/legacy-purchase review and final
+release authorization remain separate. Linux tests do not prove native execution.
+No replacement ZIP or rebuild is needed for this documentation correction.
+
+---
+
 Run `node scripts/check-staging.mjs` after the cycle's source changes and regression tests finish. No cron, services, subscriptions, dashboard feeds or alerts are created. Fixed TEST host; twelve sequential GETs, 45-second deadline each, no redirects/retries. Exit 1 on failure or unavailable source. Output contains the hosted commit, timestamp, latency and individual outcomes, not raw owner/complaint data.
 
 This checks the existing staging data contract. Under the November 13 owner direction,
