@@ -123,6 +123,26 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     api.close();
   });
+  testWidgets('property keeps record links without requesting a summary', (tester) async {
+    final api = ControlledApi();
+    final violations = ControlledViolations();
+    await tester.pumpWidget(MaterialApp(home: HomeScreen(
+      apiService: api, violationsService: violations,
+    )));
+    await tester.enterText(find.byType(TextField), '2024 PIERCE ST');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    api.scans.single.complete(PropertyResult(opa: '363157200', address: '2024 PIERCE ST'));
+    await tester.pumpAndSettle();
+    expect(find.byType(ViolationSummaryCard), findsNothing);
+    expect(violations.requested, isEmpty);
+    for (final label in ['311', 'L&I', 'Zillow']) {
+      expect(find.text(label), findsOneWidget);
+    }
+    await tester.pumpWidget(const SizedBox());
+    api.close();
+    violations.close();
+  });
   testWidgets(
     'enforcement failure offers retry and reloads when the OPA changes',
     (tester) async {
