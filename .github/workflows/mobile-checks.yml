@@ -3,7 +3,6 @@ on:
   pull_request:
     paths:
       - 'mobile/**'
-      # Server access/data contracts also affect existing mobile flows.
       - 'src/routes/**'
       - 'src/services/paidAccess.js'
       - 'src/services/ownerAccess.js'
@@ -47,44 +46,72 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      - name: Compile free records simulator app
-        run: flutter build ios --simulator --debug --dart-define=APP_ENV=prod --dart-define=PRO_PREVIEW=false --dart-define=INTERNAL_TESTING=false
-      # The owner requested a compiled test app on November 24. This is a
-      # build/install/launch smoke check, not the approved #19 acceptance suite.
-      - name: Package and launch extracted app on iPhone 17 Pro Max
+      - name: Require matched live staging before native checks
+        run: |
+          mkdir -p delivery
+          node ../scripts/check-simulator-host.mjs "$(git rev-parse HEAD)" | tee delivery/host-check.json
+      - name: Boot iPhone 17 Pro Max
+        run: |
+          set -euo pipefail
+          xcrun simctl list runtimes -j > delivery/runtimes.json
+          runtime="$(python3 -c 'import json; r=[x for x in json.load(open("delivery/runtimes.json"))["runtimes"] if x.get("isAvailable") and x["identifier"].startswith("com.apple.CoreSimulator.SimRuntime.iOS-26-")]; assert r, "No installed iOS 26 runtime"; print(sorted(r,key=lambda x:tuple(map(int,x["version"].split("."))))[-1]["identifier"])')"
+          udid="$(xcrun simctl create PhillyScan-22-Data-Test com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro-Max "$runtime")"
+          echo "SIMULATOR_UDID=$udid" >> "$GITHUB_ENV"
+          printf 'Device: iPhone 17 Pro Max\nRuntime: %s\n' "$runtime" > delivery/BUILD-EVIDENCE.txt
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+      # Focused reproduction of the owner's two November 24 bugs, including
+      # the working detail screens. This does not claim the full #19 suite.
+      - name: Verify live property summary and crime screens
+        run: |
+          set -euo pipefail
+          flutter test integration_test/live_records_test.dart -d "$SIMULATOR_UDID" --dart-define=APP_ENV=test --dart-define=PRO_PREVIEW=false --dart-define=INTERNAL_TESTING=false --dart-define=EXPECTED_BACKEND_COMMIT="$(git rev-parse HEAD)" --reporter expanded 2>&1 | tee delivery/native-records-test.txt
+      - name: Compile normal free records simulator app
+        run: flutter build ios --simulator --debug --target=lib/main.dart --dart-define=APP_ENV=test --dart-define=PRO_PREVIEW=false --dart-define=INTERNAL_TESTING=false
+      - name: Package and launch extracted app
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p delivery
-          xcodebuild -version > delivery/BUILD-EVIDENCE.txt
+          xcodebuild -version >> delivery/BUILD-EVIDENCE.txt
           flutter --version >> delivery/BUILD-EVIDENCE.txt
           git rev-parse HEAD >> delivery/BUILD-EVIDENCE.txt
           /usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' build/ios/iphonesimulator/Runner.app/Info.plist >> delivery/BUILD-EVIDENCE.txt
           /usr/libexec/PlistBuddy -c 'Print CFBundleVersion' build/ios/iphonesimulator/Runner.app/Info.plist >> delivery/BUILD-EVIDENCE.txt
           lipo -archs build/ios/iphonesimulator/Runner.app/Runner >> delivery/BUILD-EVIDENCE.txt
-          ditto -c -k --sequesterRsrc --keepParent build/ios/iphonesimulator/Runner.app delivery/PhillyScan-1.1.0-21-Simulator.zip
-          unzip -t delivery/PhillyScan-1.1.0-21-Simulator.zip
+          ditto -c -k --sequesterRsrc --keepParent build/ios/iphonesimulator/Runner.app delivery/PhillyScan-1.1.0-22-Simulator.zip
+          unzip -t delivery/PhillyScan-1.1.0-22-Simulator.zip
           clean_dir="$(mktemp -d)"
-          ditto -x -k delivery/PhillyScan-1.1.0-21-Simulator.zip "$clean_dir"
-          xcrun simctl list runtimes -j > delivery/runtimes.json
-          runtime="$(python3 -c 'import json; r=[x for x in json.load(open("delivery/runtimes.json"))["runtimes"] if x.get("isAvailable") and x["identifier"].startswith("com.apple.CoreSimulator.SimRuntime.iOS-26-")]; assert r, "No installed iOS 26 runtime"; print(sorted(r,key=lambda x:tuple(map(int,x["version"].split("."))))[-1]["identifier"])')"
-          udid="$(xcrun simctl create PhillyScan-21-Smoke com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro-Max "$runtime")"
-          trap 'xcrun simctl shutdown "$udid" >/dev/null 2>&1 || true; xcrun simctl delete "$udid" >/dev/null 2>&1 || true; rm -rf "$clean_dir"' EXIT
-          printf 'Device: iPhone 17 Pro Max\nRuntime: %s\n' "$runtime" >> delivery/BUILD-EVIDENCE.txt
-          xcrun simctl boot "$udid"
-          xcrun simctl bootstatus "$udid" -b
-          xcrun simctl install "$udid" "$clean_dir/Runner.app"
-          launched="$(xcrun simctl launch "$udid" com.dorian.phillyscan)"
+          trap 'rm -rf "$clean_dir"' EXIT
+          ditto -x -k delivery/PhillyScan-1.1.0-22-Simulator.zip "$clean_dir"
+          xcrun simctl terminate "$SIMULATOR_UDID" com.dorian.phillyscan >/dev/null 2>&1 || true
+          xcrun simctl install "$SIMULATOR_UDID" "$clean_dir/Runner.app"
+          launched="$(xcrun simctl launch "$SIMULATOR_UDID" com.dorian.phillyscan)"
           printf '%s\n' "$launched" >> delivery/BUILD-EVIDENCE.txt
           pid="${launched##*: }"
           sleep 10
           kill -0 "$pid"
-          xcrun simctl io "$udid" screenshot delivery/launch.png
-          printf 'Extracted ZIP installed; process alive after 10 seconds; screenshot captured.\nNot full native acceptance or production verification.\n' >> delivery/BUILD-EVIDENCE.txt
-      - name: Save simulator app and smoke evidence
+          xcrun simctl io "$SIMULATOR_UDID" screenshot delivery/launch.png
+          printf 'APP_ENV=test; matched staging, live native summary/311/L&I/crime checks passed.\nNormal main app recompiled; extracted ZIP installed and launched.\nNot full native acceptance or production verification.\n' >> delivery/BUILD-EVIDENCE.txt
+      - name: Save verified simulator app and evidence
         uses: actions/upload-artifact@v4
         with:
-          name: PhillyScan-1.1.0-21-Simulator
+          name: PhillyScan-1.1.0-22-Simulator
           path: mobile/delivery/
           retention-days: 14
           if-no-files-found: error
+      - name: Save failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: PhillyScan-22-Failure-Diagnostics
+          path: |
+            mobile/delivery/*.txt
+            mobile/delivery/*.json
+          retention-days: 7
+      - name: Shut down simulator
+        if: always()
+        run: |
+          if [ -n "${SIMULATOR_UDID:-}" ]; then
+            xcrun simctl shutdown "$SIMULATOR_UDID" || true
+            xcrun simctl delete "$SIMULATOR_UDID" || true
+          fi

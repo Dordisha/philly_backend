@@ -2,7 +2,7 @@ name: philly_scan_app
 description: Philly Scan – Property Facts & Insights
 publish_to: "none"
 
-version: 1.1.0+21
+version: 1.1.0+22
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
@@ -15,6 +15,8 @@ dependencies:
   url_launcher: ^6.2.6
 
 dev_dependencies:
+  integration_test:
+    sdk: flutter
   flutter_test:
     sdk: flutter
   flutter_launcher_icons: ^0.13.1

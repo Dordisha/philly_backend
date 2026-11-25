@@ -1,1 +1,1 @@
-1.1.0 (20) — Reconciled free records candidate; runtime acceptance pending
+1.1.0 (22) — Free records simulator; matched staging and focused live-data checks

@@ -1,3 +1,10 @@
+## 1.1.0 — build 22 — 2026-11-24
+
+- Simulator delivery targets the existing matched repair staging backend. The obsolete hosted summary remains rejected; no false zero or condition inference.
+- Crime retries one temporary server/connection failure, preserves the selected OPA/radius and rejects mismatched results.
+- Packaging now requires live hosted contract checks and focused iPhone 17 Pro Max reproduction of Lambert summary, 311/L&I details and all crime radii.
+- Displayed version, package version and VERSION.txt agree. Production and Store remain unchanged.
+
 # 1.1.0 (19) — Free launch candidate
 
 - All public-record features remain free; no Pro purchase flow.
