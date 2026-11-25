@@ -9,7 +9,6 @@ import 'package:philly_scan_app/src/api_service.dart';
 import 'package:philly_scan_app/src/models/property_result.dart';
 import 'package:philly_scan_app/src/main.dart';
 import 'package:philly_scan_app/screens/pro_overview_page.dart';
-import 'search_reliability_test.dart' show ControlledViolations;
 
 class ImmediateProperty extends ApiService {
   int scans = 0;
@@ -25,7 +24,6 @@ void main() {
     'Free records open without a subscription; preview also opens experimental sections',
     (tester) async {
       final api = ImmediateProperty();
-      final violations = ControlledViolations()..fail = false;
       final seen = <String>[];
       final client = ApiClient(
         client: MockClient((r) async {
@@ -88,7 +86,6 @@ void main() {
         MaterialApp(
           home: HomeScreen(
             apiService: api,
-            violationsService: violations,
             recordsClient: client,
           ),
         ),
@@ -142,7 +139,6 @@ void main() {
       await tester.pumpWidget(const SizedBox());
       client.close();
       api.close();
-      violations.close();
     },
   );
   testWidgets('schools stay hidden and AI questions disclose missing data', (

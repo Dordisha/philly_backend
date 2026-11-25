@@ -7,16 +7,17 @@ import 'package:philly_scan_app/screens/property_records_page.dart';
 import 'package:philly_scan_app/src/api_client.dart';
 import 'package:philly_scan_app/src/api_service.dart';
 import 'package:philly_scan_app/src/main.dart';
-import 'package:philly_scan_app/src/violations_service.dart';
 import 'package:philly_scan_app/widgets/premium_ui.dart';
 import 'package:philly_scan_app/widgets/violation_summary_card.dart';
 
 // Real transport only: records the responses consumed by the production widgets.
 class ObservedClient extends ApiClient {
   final responses = <String, Map<String, dynamic>>{};
+  final requestedPaths = <String>[];
   @override
   Future<Map<String, dynamic>> get(String path, Map<String, String> params,
       {String? accessToken}) async {
+    requestedPaths.add(path);
     final data = await super.get(path, params, accessToken: accessToken);
     responses[path] = data;
     return data;
@@ -27,12 +28,11 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets(
-      'Lambert summary, 311, L&I and all crime radii use live matched staging',
+      'Lambert has no summary; 311, L&I and crime still use live matched staging',
       (tester) async {
     expect(ApiConfig.baseUrl, ApiConfig.testBaseUrl);
     final client = ObservedClient();
     final api = ApiService(client: client);
-    final violations = ViolationsService(client: client);
     final root = await client.get('/_root', {});
     expect(root['commit'],
         const String.fromEnvironment('EXPECTED_BACKEND_COMMIT'));
@@ -41,7 +41,6 @@ void main() {
         theme: premiumTheme(),
         home: HomeScreen(
           apiService: api,
-          violationsService: violations,
           recordsClient: client,
         )));
     await tester.enterText(find.byType(TextField), '1539 S LAMBERT ST');
@@ -50,16 +49,15 @@ void main() {
         EnginePhase.sendSemanticsUpdate, const Duration(seconds: 120));
 
     expect(client.responses['/api/opa/search']?['result']?['opa'], '363258000');
-    final summary = client.responses['/api/violations/summary']!;
-    expect(summary['summary_version'], 2);
-    expect(summary['opa'], '363258000');
-    expect(summary['total_count'], greaterThan(0));
-    await tester.ensureVisible(find.byType(ViolationSummaryCard));
-    await tester.pumpAndSettle();
-    expect(find.text('Records: ${summary['total_count']}'), findsOneWidget);
+    expect(client.requestedPaths, isNot(contains('/api/violations/summary')));
+    expect(find.byType(ViolationSummaryCard), findsNothing);
+    expect(find.text('Recorded L&I Violations'), findsNothing);
+    expect(find.text('Retry enforcement'), findsNothing);
     expect(find.textContaining('We couldn’t load City violation records'),
         findsNothing);
     expect(find.textContaining('Low risk'), findsNothing);
+    expect(find.text('Zillow'), findsOneWidget);
+    expect(find.text('Search by owner'), findsOneWidget);
 
     for (final section in [('311', '311'), ('L&I', 'violations')]) {
       await tester.ensureVisible(find.text(section.$1));
@@ -103,7 +101,7 @@ void main() {
       }));
     }
     debugPrint(
-        'LIVE_RECORDS_VERIFIED summary=${summary['total_count']} backend=${root['commit']}');
+        'LIVE_RECORDS_VERIFIED summary_absent=true backend=${root['commit']}');
     await tester.pumpWidget(const SizedBox());
     client.close();
   }, timeout: const Timeout(Duration(minutes: 8)));

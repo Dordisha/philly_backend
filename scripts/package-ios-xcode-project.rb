@@ -11,7 +11,7 @@ abort 'usage: package-ios-xcode-project.rb MOBILE RELEASE_FRAMEWORKS OUTPUT' unl
 abort "Output already exists: #{output}" if File.exist?(output)
 version = File.read(File.join(mobile, 'pubspec.yaml')).match(/^version:\s*(\S+)$/)[1]
 name, build = version.split('+')
-abort 'Unexpected version' unless name == '1.1.0' && build == '23'
+abort 'Unexpected version' unless name == '1.1.0' && build == '24'
 team = 'YBKAAF3GF2'
 FileUtils.mkdir_p(File.join(output, 'Frameworks'))
 FileUtils.mkdir_p(File.join(output, 'Symbols'))
@@ -127,7 +127,7 @@ scheme.archive_action.reveal_archive_in_organizer = true
 scheme.save_as(project.path, 'PhillyScan', true)
 
 File.write(File.join(output, 'START-HERE.txt'), <<~TEXT)
-  PHILLY SCAN 1.1.0 (23) — XCODE SIGNING PROJECT
+  PHILLY SCAN 1.1.0 (24) — XCODE SIGNING PROJECT
 
   1. Double-click PhillyScan.xcodeproj in this folder.
   2. Click the blue PhillyScan project in the left sidebar, then the Runner target.

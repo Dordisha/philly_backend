@@ -18,9 +18,6 @@ import 'api_client.dart' show ApiClient;
 import '../config/pro_preview_config.dart';
 import 'models/property_result.dart';
 
-// ✅ Violations
-import 'violations_service.dart';
-import '../widgets/violation_summary_card.dart';
 import '../widgets/pro_coming_soon.dart';
 
 /// ===============================
@@ -29,7 +26,7 @@ import '../widgets/pro_coming_soon.dart';
 /// API configuration lives in config/api_config.dart.
 
 /// Source archive version; this preview does not create a store build.
-const String kAppVersion = "1.1.0 (23)";
+const String kAppVersion = "1.1.0 (24)";
 
 /// Support contact
 const String kFeedbackEmail = "phillyscan.app@gmail.com";
@@ -60,11 +57,9 @@ class HomeScreen extends StatefulWidget {
   const HomeScreen({
     super.key,
     this.apiService,
-    this.violationsService,
     this.recordsClient,
   });
   final ApiService? apiService;
-  final ViolationsService? violationsService;
   final ApiClient? recordsClient;
 
   @override
@@ -88,7 +83,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Timer? _debounce;
 
   late final ApiService _api;
-  late final ViolationsService _violationsService;
   int _suggestionGeneration = 0;
   int _scanGeneration = 0;
   late String _lastInputText;
@@ -118,7 +112,6 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _api = widget.apiService ?? ApiService();
-    _violationsService = widget.violationsService ?? ViolationsService();
     _lastInputText = _controller.text;
     _controller.addListener(_onInputChanged);
     _focusNode.addListener(() {
@@ -136,7 +129,6 @@ class _HomeScreenState extends State<HomeScreen> {
     _suggestionGeneration++;
     _scanGeneration++;
     if (widget.apiService == null) _api.close();
-    if (widget.violationsService == null) _violationsService.close();
     _controller.removeListener(_onInputChanged);
     _controller.dispose();
     _focusNode.dispose();
@@ -557,7 +549,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                     const SizedBox(height: 18),
-
                     const UpdateNotice(),
                     const AiComingSoonBanner(),
                     Align(
@@ -609,13 +600,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                     ),
-
                     TextButton.icon(
                       onPressed: _loading ? null : _openPro,
                       icon: const Icon(Icons.workspace_premium_outlined),
                       label: Text('Explore property • Free'),
                     ),
-
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       decoration: BoxDecoration(
@@ -673,7 +662,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         open: _open,
                         bodyStyle: _bodyStyle,
                         valueStyle: _valueStyle,
-                        violationsService: _violationsService,
                         recordsClient: widget.recordsClient,
                         selectOpa: (opa) => _scan(opaOverride: opa),
                       ),
@@ -730,7 +718,6 @@ class _ResultCard extends StatelessWidget {
   final TextStyle bodyStyle;
   final TextStyle valueStyle;
 
-  final ViolationsService violationsService;
   final ApiClient? recordsClient;
   final Future<void> Function(String) selectOpa;
 
@@ -741,7 +728,6 @@ class _ResultCard extends StatelessWidget {
     required this.open,
     required this.bodyStyle,
     required this.valueStyle,
-    required this.violationsService,
     required this.selectOpa,
     this.recordsClient,
   });
@@ -835,8 +821,6 @@ class _ResultCard extends StatelessWidget {
               ],
             ),
           ),
-          if (opa.isNotEmpty)
-            ViolationSummaryCard(opa: opa, service: violationsService),
           const SizedBox(height: 18),
           Row(
             children: [
@@ -863,9 +847,8 @@ class _ResultCard extends StatelessWidget {
           InkWell(
             borderRadius: BorderRadius.circular(18),
             onTap: () async {
-              final names = result.ownerNames.isNotEmpty
-                  ? result.ownerNames
-                  : [owner];
+              final names =
+                  result.ownerNames.isNotEmpty ? result.ownerNames : [owner];
               String? selectedOwner = names.first;
               if (names.length > 1) {
                 selectedOwner = await showDialog<String>(

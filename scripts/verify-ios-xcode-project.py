@@ -19,7 +19,7 @@ assert settings['DEVELOPMENT_TEAM'] == 'YBKAAF3GF2'
 assert settings['CODE_SIGN_STYLE'] == 'Automatic'
 assert settings['CODE_SIGNING_ALLOWED'] == 'YES', settings.get('CODE_SIGNING_ALLOWED')
 assert settings['CODE_SIGN_ENTITLEMENTS'] == 'Runner/Runner.entitlements'
-assert settings['FLUTTER_BUILD_NAME'] == '1.1.0' and settings['FLUTTER_BUILD_NUMBER'] == '23'
+assert settings['FLUTTER_BUILD_NAME'] == '1.1.0' and settings['FLUTTER_BUILD_NUMBER'] == '24'
 assert settings['APS_ENVIRONMENT'] == 'production'
 app = archive / 'Products/Applications/Runner.app'
 assert (app / 'Frameworks/App.framework/flutter_assets').is_dir()

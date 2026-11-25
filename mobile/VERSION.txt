@@ -1,1 +1,1 @@
-Philly Scan 1.1.0 (23) — release preparation; unsigned archive, not submitted
+Philly Scan 1.1.0 (24) — violation summary removed; release preparation, not submitted

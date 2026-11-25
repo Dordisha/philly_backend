@@ -15,7 +15,7 @@ with (app / "Info.plist").open("rb") as f:
     info = plistlib.load(f)
 assert info["CFBundleIdentifier"] == "com.dorian.phillyscan"
 assert info["CFBundleShortVersionString"] == "1.1.0"
-assert info["CFBundleVersion"] == "23"
+assert info["CFBundleVersion"] == "24"
 for key in ("CFBundleIdentifier", "CFBundleShortVersionString", "CFBundleVersion"):
     assert metadata["ApplicationProperties"][key] == info[key], key
 assert info["CFBundleSupportedPlatforms"] == ["iPhoneOS"]
