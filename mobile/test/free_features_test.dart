@@ -21,7 +21,7 @@ class FreeProperty extends ApiService {
 
 void main() {
   testWidgets(
-    'free aggregate and clipboard stay usable in either preview mode',
+    'free property facts and clipboard stay usable in either preview mode',
     (tester) async {
       final api = FreeProperty();
       final violations = ControlledViolations()..fail = false;
@@ -43,8 +43,8 @@ void main() {
       await tester.ensureVisible(find.text('Scan'));
       await tester.tap(find.text('Scan'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Recorded L&I Violations'));
-      expect(find.text('Records: 3'), findsOneWidget);
+      expect(find.text('Recorded L&I Violations'), findsNothing);
+      expect(violations.requested, isEmpty);
       expect(find.textContaining('Active:'), findsNothing);
       expect(find.textContaining('History:'), findsNothing);
       expect(find.textContaining('Center City Core'), findsOneWidget);
