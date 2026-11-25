@@ -1,9 +1,11 @@
-PHILLY SCAN 1.1.0 (19) — FREE RECORDS
+PHILLY SCAN 1.1.0 (23) — RELEASE PREPARATION
 
-Use the full source folder. In mobile, run PREPARE_TESTFLIGHT.command.
-Then in Xcode: select Runner, confirm signing team, choose Any iOS Device,
-Product > Archive, Distribute App > App Store Connect.
+For the prepared archive, unzip PhillyScan-1.1.0-23-Xcode-Archive.zip and
+open PhillyScan-1.1.0-23.xcarchive in Xcode Organizer.
 
-This build removes $2.99 Pro. AI is coming later, planned at $12.99/month.
-No subscription is sold and no advertising is configured in this build.
-Read START-HERE.md for App Store Connect changes and device checks.
+The archive is unsigned. Apple signing/export, production compatibility,
+privacy/Store corrections and final release approval remain pending.
+Do not upload or submit yet. No Terminal/source setup is required to open
+this compiled archive. See docs/release-1.1.0-23.md.
+
+For simulator testing, use the separate compiled Simulator ZIP.

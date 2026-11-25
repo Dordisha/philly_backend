@@ -55,7 +55,7 @@ jobs:
           set -euo pipefail
           xcrun simctl list runtimes -j > delivery/runtimes.json
           runtime="$(python3 -c 'import json; r=[x for x in json.load(open("delivery/runtimes.json"))["runtimes"] if x.get("isAvailable") and x["identifier"].startswith("com.apple.CoreSimulator.SimRuntime.iOS-26-")]; assert r, "No installed iOS 26 runtime"; print(sorted(r,key=lambda x:tuple(map(int,x["version"].split("."))))[-1]["identifier"])')"
-          udid="$(xcrun simctl create PhillyScan-22-Data-Test com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro-Max "$runtime")"
+          udid="$(xcrun simctl create PhillyScan-23-Data-Test com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro-Max "$runtime")"
           echo "SIMULATOR_UDID=$udid" >> "$GITHUB_ENV"
           printf 'Device: iPhone 17 Pro Max\nRuntime: %s\n' "$runtime" > delivery/BUILD-EVIDENCE.txt
           xcrun simctl boot "$udid"
@@ -65,9 +65,9 @@ jobs:
       - name: Verify live property summary and crime screens
         run: |
           set -euo pipefail
-          flutter test integration_test/live_records_test.dart -d "$SIMULATOR_UDID" --dart-define=APP_ENV=test --dart-define=PRO_PREVIEW=false --dart-define=INTERNAL_TESTING=false --dart-define=EXPECTED_BACKEND_COMMIT="$(git rev-parse HEAD)" --reporter expanded 2>&1 | tee delivery/native-records-test.txt
+          flutter test integration_test/live_records_test.dart -d "$SIMULATOR_UDID" --dart-define-from-file=release-settings.json --dart-define=APP_ENV=test --dart-define=PRO_PREVIEW=false --dart-define=INTERNAL_TESTING=false --dart-define=EXPECTED_BACKEND_COMMIT="$(git rev-parse HEAD)" --reporter expanded 2>&1 | tee delivery/native-records-test.txt
       - name: Compile normal free records simulator app
-        run: flutter build ios --simulator --debug --target=lib/main.dart --dart-define=APP_ENV=test --dart-define=PRO_PREVIEW=false --dart-define=INTERNAL_TESTING=false
+        run: flutter build ios --simulator --debug --target=lib/main.dart --dart-define-from-file=release-settings.json --dart-define=APP_ENV=test --dart-define=PRO_PREVIEW=false --dart-define=INTERNAL_TESTING=false
       - name: Package and launch extracted app
         shell: bash
         run: |
@@ -78,11 +78,11 @@ jobs:
           /usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' build/ios/iphonesimulator/Runner.app/Info.plist >> delivery/BUILD-EVIDENCE.txt
           /usr/libexec/PlistBuddy -c 'Print CFBundleVersion' build/ios/iphonesimulator/Runner.app/Info.plist >> delivery/BUILD-EVIDENCE.txt
           lipo -archs build/ios/iphonesimulator/Runner.app/Runner >> delivery/BUILD-EVIDENCE.txt
-          ditto -c -k --sequesterRsrc --keepParent build/ios/iphonesimulator/Runner.app delivery/PhillyScan-1.1.0-22-Simulator.zip
-          unzip -t delivery/PhillyScan-1.1.0-22-Simulator.zip
+          ditto -c -k --sequesterRsrc --keepParent build/ios/iphonesimulator/Runner.app delivery/PhillyScan-1.1.0-23-Simulator.zip
+          unzip -t delivery/PhillyScan-1.1.0-23-Simulator.zip
           clean_dir="$(mktemp -d)"
           trap 'rm -rf "$clean_dir"' EXIT
-          ditto -x -k delivery/PhillyScan-1.1.0-22-Simulator.zip "$clean_dir"
+          ditto -x -k delivery/PhillyScan-1.1.0-23-Simulator.zip "$clean_dir"
           xcrun simctl terminate "$SIMULATOR_UDID" com.dorian.phillyscan >/dev/null 2>&1 || true
           xcrun simctl install "$SIMULATOR_UDID" "$clean_dir/Runner.app"
           launched="$(xcrun simctl launch "$SIMULATOR_UDID" com.dorian.phillyscan)"
@@ -95,7 +95,7 @@ jobs:
       - name: Save verified simulator app and evidence
         uses: actions/upload-artifact@v4
         with:
-          name: PhillyScan-1.1.0-22-Simulator
+          name: PhillyScan-1.1.0-23-Simulator
           path: mobile/delivery/
           retention-days: 14
           if-no-files-found: error
@@ -103,7 +103,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: PhillyScan-22-Failure-Diagnostics
+          name: PhillyScan-23-Failure-Diagnostics
           path: |
             mobile/delivery/*.txt
             mobile/delivery/*.json

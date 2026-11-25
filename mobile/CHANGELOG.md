@@ -1,3 +1,10 @@
+## 1.1.0 — build 23 — 2026-11-24
+
+- Adds the app-level privacy manifest for its local notification preference (UserDefaults reason CA92.1); tracking remains disabled.
+- Native test/simulator packaging explicitly includes the configured privacy-policy URL.
+- Adds unsigned iPhoneOS archive preparation and archive/manifest/version/architecture/extraction verification. No signing, upload, submission or production deployment.
+- Corrects stale build-19 source instructions and keeps existing-subscription changes on hold for a read-only inventory and owner review.
+
 ## 1.1.0 — build 22 — 2026-11-24
 
 - Simulator delivery targets the existing matched repair staging backend. The obsolete hosted summary remains rejected; no false zero or condition inference.

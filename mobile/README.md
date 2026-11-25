@@ -1,38 +1,23 @@
-# Philly Scan 1.1.0 (19) — Free records, AI coming later
+# Philly Scan 1.1.0 (23) — release preparation
 
-This replaces purchase candidate 16 / uploaded TestFlight build 17 and free-records source candidate 18.
+All City property records, 311, L&I, owner/co-owner search and reported crime aggregates are free. AI is informational and coming soon, with no purchase flow. Build 23 adds the app privacy manifest and explicitly configures the privacy link while preserving the build-22 feature fixes.
 
-## What changed
-- Property facts, 311, L&I, owner search and Zillow links require no subscription.
-- The $2.99 Pro purchase screen and native StoreKit product integration are removed.
-- AI is planned at $12.99/month, clearly unavailable for purchase. No AI entitlement is sold or granted.
-- Settings explains independent operation and links to free City datasets.
-- No ad SDK/account is configured. This build displays no ads and collects no ad identifiers. Advertising requires publisher IDs, consent/privacy configuration and separate device testing before activation.
-- The production AI section is an informational Coming soon card, not inactive feature buttons.
-- Internal debug previews remain isolated from the production configuration.
+## Prepared files
 
-## Prepare on your Mac
-1. Download this branch's complete source ZIP and unzip it.
-2. Open mobile/PREPARE_TESTFLIGHT.command. It prepares production configuration with preview/internal flags false and build 19.
-3. In Xcode select Runner, your signing team and Any iOS Device, then Product > Archive.
-4. Distribute using App Store Connect; install 1.1.0 (19) from TestFlight after processing.
+- The compiled simulator ZIP runs against the existing matching test server. Unzip and drag Runner.app onto the open iPhone 17 Pro Max simulator.
+- The release archive workflow creates **PhillyScan-1.1.0-23-Xcode-Archive.zip**. It contains a compiled, unsigned iPhoneOS `.xcarchive`, which opens directly in Xcode Organizer after extraction. This is preparation for Apple signing/validation, not an installable IPA or an uploaded build.
+- A raw GitHub source ZIP is developer source. It is not the prepared archive and is not a portable, dependency-free Xcode project.
 
-The script prepares configuration; Xcode performs the native archive. A source ZIP is not a compiled app.
-If Apple has already received build 19, run with a higher BUILD_NUMBER instead.
+## Release hold
 
-## App Store Connect changes still required
-- Stop offering com.dorian.phillyscan.pro.monthly and remove it from any pending submission. Do not repurpose its product ID for AI.
-- Check whether there are any real subscribers before changing availability; removing the in-app purchase UI does not cancel existing renewals. Manage existing subscribers through Apple's supported process.
-- Remove old $2.99 Pro and promo-offer claims from app metadata/screenshots.
-- Submit this version without a new AI subscription. Create a separate AI product only when the promised features and purchase/restore flow work.
-- Source permissions remain a separate unresolved review; this build does not claim legal clearance.
+The production archive uses APP_ENV=prod, preview/internal testing disabled, and the owner-supplied privacy-policy URL in release-settings.json. Production still needs a compatible backend rollout and fresh verification; the policy and App Store disclosures need the reviewed changes. The exact public 1.0.3 client-to-host mapping is not established, so backward compatibility cannot be assumed.
 
-## Device acceptance checklist
-- With no subscription, scan a property; open 311, L&I, Zillow and owner search.
-- Verify correct property/OPA, published statuses, pagination and failure/retry behavior.
-- Confirm there is no Pro upgrade, subscribe, redemption or old price flow.
-- Confirm AI says coming later and cannot charge.
-- Open Settings > Free access, AI & sources; verify source and privacy links.
-- Verify notifications and normal navigation still work.
+Apple signing/export, final native acceptance, privacy/licensing/crash review, and owner authorization are still required. Do not upload or submit this preparation archive while these gates remain open. See [release packet](../docs/release-1.1.0-23.md) and tracker #18.
 
-Backend owner API must deploy this branch's public-access change separately. The mobile owner lookup continues using its existing direct City API adapter.
+## Existing subscriptions
+
+No new subscription is sold by this candidate. Existing monthly/annual products, offers, codes, customers and renewals must be inventoried read-only before proposing any change. Removing purchase UI does not cancel renewals. Nothing in this package authorizes removing products from sale, changing entitlements, refunds or customer notices.
+
+## Developer source setup
+
+PREPARE_TESTFLIGHT.command remains a developer convenience for a Mac with Flutter/CocoaPods configured. Its default build number comes from pubspec.yaml. It is not the owner delivery path and does not establish native or production acceptance.

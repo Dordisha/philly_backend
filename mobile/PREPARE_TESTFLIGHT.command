@@ -13,11 +13,12 @@ assert u.scheme=='https' and u.netloc and not u.username, 'A published HTTPS pri
 assert s.get('PRO_PREVIEW') is False and s.get('INTERNAL_TESTING') is False, 'Testing bypasses must be disabled.'
 assert s.get('APP_ENV') == 'prod', 'The release candidate must use production.'
 CHECK
+build_number="${BUILD_NUMBER:-$(sed -n 's/^version: .*+//p' pubspec.yaml)}"
 export CI=true
 export FLUTTER_SUPPRESS_ANALYTICS=true
 flutter pub get
 flutter analyze
 flutter test --dart-define=PRO_PREVIEW=false
-flutter build ios --release --config-only --build-name=1.1.0 --build-number="${BUILD_NUMBER:-19}" --dart-define-from-file=release-settings.json
+flutter build ios --release --config-only --build-name=1.1.0 --build-number="$build_number" --dart-define-from-file=release-settings.json
 open ios/Runner.xcworkspace
-printf '\nIn Xcode: confirm bundle ID and signing team, select Any iOS Device, Product > Archive. Upload using App Store Connect (not TestFlight Internal Only if this build is intended for later release). Verify free records and owner search on an iPhone. No subscriptions are sold in this build.\n'
+printf '\nPrepared developer workspace. In Xcode: select Any iOS Device, Product > Archive. HOLD upload/submission until production compatibility, privacy, native acceptance and final owner approval are recorded in tracker #18. No subscriptions are sold in this build.\n'

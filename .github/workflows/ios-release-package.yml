@@ -1,0 +1,72 @@
+name: Prepare unsigned iOS release archive
+on:
+  pull_request:
+    paths:
+      - 'mobile/**'
+      - 'scripts/verify-ios-archive.py'
+      - '.github/workflows/ios-release-package.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  archive:
+    runs-on: macos-26
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.6'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Check production archive configuration
+        run: |
+          python3 - <<'PY'
+          import json
+          s=json.load(open('release-settings.json'))
+          assert s['APP_ENV']=='prod'
+          assert s['PRO_PREVIEW'] is False and s['INTERNAL_TESTING'] is False
+          assert s['PRIVACY_POLICY_URL'].startswith('https://')
+          assert not s.get('API_BASE_URL'), 'Do not silently override the production host'
+          PY
+      - name: Compile unsigned device archive
+        run: |
+          set -euo pipefail
+          mkdir -p release-delivery
+          flutter build ipa --release --no-codesign --target=lib/main.dart --dart-define-from-file=release-settings.json 2>&1 | tee release-delivery/archive-build.txt
+      - name: Verify archive and fresh extraction
+        run: |
+          set -euo pipefail
+          python3 ../scripts/verify-ios-archive.py build/ios/archive/Runner.xcarchive | tee release-delivery/archive-check.json
+          mv build/ios/archive/Runner.xcarchive build/ios/archive/PhillyScan-1.1.0-23.xcarchive
+          ditto -c -k --sequesterRsrc --keepParent build/ios/archive/PhillyScan-1.1.0-23.xcarchive release-delivery/PhillyScan-1.1.0-23-Xcode-Archive.zip
+          unzip -t release-delivery/PhillyScan-1.1.0-23-Xcode-Archive.zip > release-delivery/zip-integrity.txt
+          clean_dir="$(mktemp -d)"
+          trap 'rm -rf "$clean_dir"' EXIT
+          ditto -x -k release-delivery/PhillyScan-1.1.0-23-Xcode-Archive.zip "$clean_dir"
+          python3 ../scripts/verify-ios-archive.py "$clean_dir/PhillyScan-1.1.0-23.xcarchive" > release-delivery/extracted-archive-check.json
+          xcodebuild -version > release-delivery/BUILD-EVIDENCE.txt
+          flutter --version >> release-delivery/BUILD-EVIDENCE.txt
+          git rev-parse HEAD >> release-delivery/BUILD-EVIDENCE.txt
+          shasum -a 256 release-delivery/PhillyScan-1.1.0-23-Xcode-Archive.zip >> release-delivery/BUILD-EVIDENCE.txt
+          printf '\nUnsigned iPhoneOS archive. APP_ENV=prod, preview/internal false.\nSigning, export, device/TestFlight and production-backend acceptance NOT verified.\nHOLD: no upload or submission until release gates and owner approval.\n' >> release-delivery/BUILD-EVIDENCE.txt
+      - name: Save prepared archive and evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: PhillyScan-1.1.0-23-Xcode-Archive
+          path: mobile/release-delivery/
+          retention-days: 14
+          if-no-files-found: error
+      - name: Save failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: PhillyScan-23-Archive-Failure
+          path: mobile/release-delivery/
+          retention-days: 7
