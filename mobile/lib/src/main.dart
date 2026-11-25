@@ -20,7 +20,6 @@ import 'models/property_result.dart';
 
 // ✅ Violations
 import 'violations_service.dart';
-import '../widgets/violation_summary_card.dart';
 import '../widgets/pro_coming_soon.dart';
 
 /// ===============================
@@ -835,8 +834,6 @@ class _ResultCard extends StatelessWidget {
               ],
             ),
           ),
-          if (opa.isNotEmpty)
-            ViolationSummaryCard(opa: opa, service: violationsService),
           const SizedBox(height: 18),
           Row(
             children: [
