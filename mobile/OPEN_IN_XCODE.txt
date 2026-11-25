@@ -1,11 +1,14 @@
 PHILLY SCAN 1.1.0 (23) — RELEASE PREPARATION
 
-For the prepared archive, unzip PhillyScan-1.1.0-23-Xcode-Archive.zip and
-open PhillyScan-1.1.0-23.xcarchive in Xcode Organizer.
+For the replacement project, unzip PhillyScan-23-Xcode-Signing.zip and
+double-click PhillyScan.xcodeproj inside the extracted folder.
+Select Runner > Signing & Capabilities > Team: Dorian Dishani.
+Choose Any iOS Device (arm64), then Product > Archive.
+Keep the entire extracted folder together. No Flutter/CocoaPods/Terminal setup.
 
-The archive is unsigned. Apple signing/export, production compatibility,
+The old unsigned archive failed with "No Team Found in Archive" and is withdrawn.
+Apple signing/export on the owner's Mac, production compatibility,
 privacy/Store corrections and final release approval remain pending.
-Do not upload or submit yet. No Terminal/source setup is required to open
-this compiled archive. See docs/release-1.1.0-23.md.
+Do not upload or submit yet. See docs/release-1.1.0-23.md.
 
 For simulator testing, use the separate compiled Simulator ZIP.

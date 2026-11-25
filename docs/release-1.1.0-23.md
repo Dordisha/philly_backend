@@ -42,3 +42,9 @@ No account or subscription is required for public records. Search 1539 S Lambert
 https://smoggy-silence-f88.notion.site/Philly-Scan-Privacy-Policy-4107f2ef2cfa81d7b614d0600521d606
 
 No production, App Store, public policy, billing, outreach, paid-service or schedule change is authorized by this preparation document.
+# November 24 packaging correction
+
+The owner encountered **No Team Found in Archive** in Organizer. The earlier unsigned archive has empty `ApplicationProperties.Team` and `SigningIdentity`; its compilation/ZIP checks were insufficient for direct signing/validation handoff. That delivery is withdrawn. Do not patch archive metadata or retry it as if signed.
+
+The replacement packaging workflow builds precompiled Flutter frameworks into a standalone **PhillyScan.xcodeproj**, with the owner's team and automatic signing configured. It tests fresh ZIP extraction and native Xcode archiving without Flutter/CocoaPods commands. CI remains unsigned: actual Apple signing/export/validation on the owner's Mac, production compatibility and final release gates are still pending. Evidence from the replacement run supersedes only packaging instructions below, not prior functional test evidence or release holds.
+

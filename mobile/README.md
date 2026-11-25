@@ -5,7 +5,8 @@ All City property records, 311, L&I, owner/co-owner search and reported crime ag
 ## Prepared files
 
 - The compiled simulator ZIP runs against the existing matching test server. Unzip and drag Runner.app onto the open iPhone 17 Pro Max simulator.
-- The release archive workflow creates **PhillyScan-1.1.0-23-Xcode-Archive.zip**. It contains a compiled, unsigned iPhoneOS `.xcarchive`, which opens directly in Xcode Organizer after extraction. This is preparation for Apple signing/validation, not an installable IPA or an uploaded build.
+- The replacement workflow creates **PhillyScan-23-Xcode-Signing.zip** with **PhillyScan.xcodeproj**, precompiled release frameworks and native sources. Open this project, select the owner team under Runner > Signing & Capabilities, select Any iOS Device, and choose Product > Archive. Flutter/CocoaPods/Terminal are not required by this delivered project. Apple signing and validation must still be completed on the owner's Mac.
+- **Withdrawn delivery:** the earlier unsigned `PhillyScan-1.1.0-23-Xcode-Archive.zip` failed in Organizer with “No Team Found in Archive.” Its unsigned compilation checks did not establish signing or validation readiness; do not retry it or patch its team metadata.
 - A raw GitHub source ZIP is developer source. It is not the prepared archive and is not a portable, dependency-free Xcode project.
 
 ## Release hold
