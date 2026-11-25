@@ -27,7 +27,7 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets(
-      'Lambert summary, 311, L&I and all crime radii use live matched staging',
+      'Lambert records and all crime radii use live matched staging without summary',
       (tester) async {
     expect(ApiConfig.baseUrl, ApiConfig.testBaseUrl);
     final client = ObservedClient();
@@ -50,13 +50,8 @@ void main() {
         EnginePhase.sendSemanticsUpdate, const Duration(seconds: 120));
 
     expect(client.responses['/api/opa/search']?['result']?['opa'], '363258000');
-    final summary = client.responses['/api/violations/summary']!;
-    expect(summary['summary_version'], 2);
-    expect(summary['opa'], '363258000');
-    expect(summary['total_count'], greaterThan(0));
-    await tester.ensureVisible(find.byType(ViolationSummaryCard));
-    await tester.pumpAndSettle();
-    expect(find.text('Records: ${summary['total_count']}'), findsOneWidget);
+    expect(client.responses.containsKey('/api/violations/summary'), isFalse);
+    expect(find.byType(ViolationSummaryCard), findsNothing);
     expect(find.textContaining('We couldn’t load City violation records'),
         findsNothing);
     expect(find.textContaining('Low risk'), findsNothing);
@@ -103,7 +98,7 @@ void main() {
       }));
     }
     debugPrint(
-        'LIVE_RECORDS_VERIFIED summary=${summary['total_count']} backend=${root['commit']}');
+        'LIVE_RECORDS_VERIFIED backend=${root['commit']}');
     await tester.pumpWidget(const SizedBox());
     client.close();
   }, timeout: const Timeout(Duration(minutes: 8)));
