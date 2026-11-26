@@ -89,7 +89,8 @@ export async function checkStaging({ fetchImpl = fetch, timeoutMs = 45000 } = {}
             else assert.notEqual(row.service_request_id, firstComplaint, 'Repeated page record');
           } else if (section === 'facts') {
             assert.equal(String(row.parcel_number), OPA);
-            assert.match(body.signals.listing_status, /Unknown/);
+            // Raw public facts do not require or imply interpretation.
+            if (body.signals) assert.match(body.signals.listing_status, /Unknown/);
           } else if (section === 'sales') {
             assert.ok(row.parcel_number != null);
             assert.notEqual(String(row.parcel_number), OPA);

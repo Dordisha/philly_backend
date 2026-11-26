@@ -4,7 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../src/api_client.dart';
 import '../widgets/premium_ui.dart';
 
-const recordSections = ['311', 'violations', 'sales', 'facts'];
+const recordSections = ['311', 'violations', 'sales', 'signals'];
 const recordTitles = ['311 records', 'L&I records', 'Resale value', 'Signals'];
 
 String recordValue(dynamic value) => value == null || value.toString().isEmpty

@@ -1,11 +1,13 @@
 import { Router } from 'express';
-import { resolveOwnerAccess } from '../services/ownerAccess.js';
 import { searchOwnerProperties } from '../lib/ownerSearch.js';
-import { requirePaidAccess } from '../services/paidAccess.js';
 
-export function ownerRouter({ authorize = resolveOwnerAccess, search = searchOwnerProperties } = {}) {
+export function ownerRouter({ search = searchOwnerProperties } = {}) {
   const router = Router();
-  router.use(requirePaidAccess('pro', authorization => authorize(authorization)));
+  // Public property data is free; input validation and bounded paging remain.
+  router.use((req, res, next) => {
+    res.set('Cache-Control', 'no-store');
+    next();
+  });
   router.get('/', async (req, res) => {
     try {
       const result = await search(req.query.name, { limit: 25, after: req.query.after ?? '' });

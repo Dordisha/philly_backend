@@ -1,5 +1,4 @@
-import '../services/pro_subscription.dart';
-import '../widgets/pro_paywall.dart';
+import '../widgets/access_information.dart';
 import '../widgets/ai_coming_soon_banner.dart';
 // lib/src/main.dart
 import 'dart:async';
@@ -19,9 +18,6 @@ import 'api_client.dart' show ApiClient;
 import '../config/pro_preview_config.dart';
 import 'models/property_result.dart';
 
-// ✅ Violations
-import 'violations_service.dart';
-import '../widgets/violation_summary_card.dart';
 import '../widgets/pro_coming_soon.dart';
 
 /// ===============================
@@ -30,15 +26,14 @@ import '../widgets/pro_coming_soon.dart';
 /// API configuration lives in config/api_config.dart.
 
 /// Source archive version; this preview does not create a store build.
-const String kAppVersion = "1.1.0-rc.1 (15)";
+const String kAppVersion = "1.1.0 (24)";
 
 /// Support contact
-const String kFeedbackEmail = "dorian.dishani@gmail.com";
+const String kFeedbackEmail = "phillyscan.app@gmail.com";
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   NotificationCoordinator.instance.start();
-  ProSubscription.instance.start();
   runApp(const PhillyScanApp());
 }
 
@@ -62,11 +57,9 @@ class HomeScreen extends StatefulWidget {
   const HomeScreen({
     super.key,
     this.apiService,
-    this.violationsService,
     this.recordsClient,
   });
   final ApiService? apiService;
-  final ViolationsService? violationsService;
   final ApiClient? recordsClient;
 
   @override
@@ -90,7 +83,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Timer? _debounce;
 
   late final ApiService _api;
-  late final ViolationsService _violationsService;
   int _suggestionGeneration = 0;
   int _scanGeneration = 0;
   late String _lastInputText;
@@ -116,16 +108,10 @@ class _HomeScreenState extends State<HomeScreen> {
     color: PremiumColors.ink,
   );
 
-  void _subscriptionChanged() {
-    if (mounted) setState(() {});
-  }
-
   @override
   void initState() {
     super.initState();
-    ProSubscription.instance.addListener(_subscriptionChanged);
     _api = widget.apiService ?? ApiService();
-    _violationsService = widget.violationsService ?? ViolationsService();
     _lastInputText = _controller.text;
     _controller.addListener(_onInputChanged);
     _focusNode.addListener(() {
@@ -139,12 +125,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
-    ProSubscription.instance.removeListener(_subscriptionChanged);
     _debounce?.cancel();
     _suggestionGeneration++;
     _scanGeneration++;
     if (widget.apiService == null) _api.close();
-    if (widget.violationsService == null) _violationsService.close();
     _controller.removeListener(_onInputChanged);
     _controller.dispose();
     _focusNode.dispose();
@@ -271,8 +255,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _openPro() async {
-    if ((ProPreviewConfig.enabled || ProSubscription.instance.active) &&
-        _result == null) {
+    if (_result == null) {
       if (_controller.text.trim().isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Enter a property address first.')),
@@ -566,7 +549,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                     const SizedBox(height: 18),
-
                     const UpdateNotice(),
                     const AiComingSoonBanner(),
                     Align(
@@ -598,11 +580,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                   TextButton(
                                     onPressed: () => Navigator.of(context).push(
                                       MaterialPageRoute<void>(
-                                        builder: (_) => const ProPaywall(),
+                                        builder: (_) =>
+                                            const AccessInformationPage(),
                                       ),
                                     ),
                                     child: const Text(
-                                      'Subscription & Restore Purchases',
+                                      'Free access, AI & sources',
                                     ),
                                   ),
                                   TextButton.icon(
@@ -617,18 +600,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                     ),
-
                     TextButton.icon(
                       onPressed: _loading ? null : _openPro,
                       icon: const Icon(Icons.workspace_premium_outlined),
-                      label: Text(
-                        (ProPreviewConfig.enabled ||
-                                ProSubscription.instance.active)
-                            ? 'Open Pro • Live data'
-                            : 'Upgrade to Pro',
-                      ),
+                      label: Text('Explore property • Free'),
                     ),
-
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       decoration: BoxDecoration(
@@ -686,7 +662,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         open: _open,
                         bodyStyle: _bodyStyle,
                         valueStyle: _valueStyle,
-                        violationsService: _violationsService,
                         recordsClient: widget.recordsClient,
                         selectOpa: (opa) => _scan(opaOverride: opa),
                       ),
@@ -743,7 +718,6 @@ class _ResultCard extends StatelessWidget {
   final TextStyle bodyStyle;
   final TextStyle valueStyle;
 
-  final ViolationsService violationsService;
   final ApiClient? recordsClient;
   final Future<void> Function(String) selectOpa;
 
@@ -754,7 +728,6 @@ class _ResultCard extends StatelessWidget {
     required this.open,
     required this.bodyStyle,
     required this.valueStyle,
-    required this.violationsService,
     required this.selectOpa,
     this.recordsClient,
   });
@@ -848,8 +821,6 @@ class _ResultCard extends StatelessWidget {
               ],
             ),
           ),
-          if (opa.isNotEmpty)
-            ViolationSummaryCard(opa: opa, service: violationsService),
           const SizedBox(height: 18),
           Row(
             children: [
@@ -876,10 +847,8 @@ class _ResultCard extends StatelessWidget {
           InkWell(
             borderRadius: BorderRadius.circular(18),
             onTap: () async {
-              if (!await requirePro(context) || !context.mounted) return;
-              final names = result.ownerNames.isNotEmpty
-                  ? result.ownerNames
-                  : [owner];
+              final names =
+                  result.ownerNames.isNotEmpty ? result.ownerNames : [owner];
               String? selectedOwner = names.first;
               if (names.length > 1) {
                 selectedOwner = await showDialog<String>(
@@ -899,12 +868,10 @@ class _ResultCard extends StatelessWidget {
               if (selectedOwner == null || !context.mounted) return;
               final selected = await Navigator.of(context).push<String>(
                 MaterialPageRoute(
-                  builder: (_) => ProAccessGate(
-                    child: OwnerSearchPage(
-                      owner: selectedOwner!,
-                      opa: opa,
-                      client: recordsClient,
-                    ),
+                  builder: (_) => OwnerSearchPage(
+                    owner: selectedOwner!,
+                    opa: opa,
+                    client: recordsClient,
                   ),
                 ),
               );
@@ -934,7 +901,7 @@ class _ResultCard extends StatelessWidget {
                         ),
                         SizedBox(height: 6),
                         Text(
-                          "Find owner and co-owner properties • Pro",
+                          "Find owner and co-owner properties • Free",
                           style: TextStyle(
                             fontSize: 13,
                             color: PremiumColors.secondary,

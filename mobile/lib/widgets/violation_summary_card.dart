@@ -75,7 +75,7 @@ class _ViolationSummaryCardState extends State<ViolationSummaryCard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Enforcement records unavailable. This does not mean there are no violations.',
+                  'We couldn’t load City violation records. Try again. This does not mean there are no violations.',
                 ),
                 TextButton(
                   onPressed: () => setState(() {
@@ -118,7 +118,10 @@ class _ViolationSummaryCardState extends State<ViolationSummaryCard> {
                 ),
                 const SizedBox(height: 8),
                 if (s.totalCount == 0)
-                  const Text('No records returned for this OPA. This is not a safety assessment.')
+                  const Text(
+                    'This lookup returned no City violation records for this property. '
+                    'This is not proof of safety or condition.',
+                  )
                 else
                   ...s.statuses.map((status) => Padding(
                     padding: const EdgeInsets.only(bottom: 6),
@@ -149,7 +152,7 @@ class _ViolationSummaryCardState extends State<ViolationSummaryCard> {
                         initialSection: 1,
                         title: "Enforcement Details",
                         message:
-                            "You can see the summary for free.\n\nDetailed case history and enforcement records will be available in the Pro version soon.",
+                            "Detailed enforcement records are free. Verify published statuses and dates with the City.",
                       );
                     },
                     child: const Text("View enforcement details"),

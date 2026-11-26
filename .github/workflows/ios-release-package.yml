@@ -1,0 +1,83 @@
+name: Prepare portable Xcode signing project
+on:
+  pull_request:
+    paths:
+      - 'mobile/**'
+      - 'scripts/verify-ios-archive.py'
+      - 'scripts/package-ios-xcode-project.rb'
+      - 'scripts/verify-ios-xcode-project.py'
+      - '.github/workflows/ios-release-package.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  archive:
+    runs-on: macos-26
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.6'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Check production configuration
+        run: |
+          python3 - <<'PY'
+          import json
+          s=json.load(open('release-settings.json'))
+          assert s['APP_ENV']=='prod'
+          assert s['PRO_PREVIEW'] is False and s['INTERNAL_TESTING'] is False
+          assert s['PRIVACY_POLICY_URL'].startswith('https://')
+          assert not s.get('API_BASE_URL'), 'Do not silently override the production host'
+          PY
+      - name: Precompile release app and plugins
+        run: |
+          set -euo pipefail
+          mkdir -p release-delivery
+          flutter build ios-framework --no-debug --no-profile --release --target=lib/main.dart --dart-define-from-file=release-settings.json --output=build/portable-frameworks 2>&1 | tee release-delivery/framework-build.txt
+      - name: Generate standalone Xcode project
+        run: |
+          set -euo pipefail
+          gem install xcodeproj -v 1.27.0 --user-install --no-document
+          export GEM_HOME="$(ruby -e 'print Gem.user_dir')"
+          ruby ../scripts/package-ios-xcode-project.rb . build/portable-frameworks/Release build/PhillyScan-24-Xcode | tee release-delivery/package-generation.json
+          ditto -c -k --sequesterRsrc --keepParent build/PhillyScan-24-Xcode release-delivery/PhillyScan-24-Xcode-Signing.zip
+          unzip -t release-delivery/PhillyScan-24-Xcode-Signing.zip > release-delivery/zip-integrity.txt
+      - name: Archive from a fresh extraction without Flutter or CocoaPods
+        run: |
+          set -euo pipefail
+          clean_dir="$(mktemp -d)/Fresh Xcode Package"
+          mkdir -p "$clean_dir"
+          ditto -x -k release-delivery/PhillyScan-24-Xcode-Signing.zip "$clean_dir"
+          project="$clean_dir/PhillyScan-24-Xcode/PhillyScan.xcodeproj"
+          export PATH=/usr/bin:/bin:/usr/sbin:/sbin
+          if command -v flutter || command -v pod; then exit 1; fi
+          xcodebuild -project "$project" -scheme PhillyScan -configuration Release -destination 'generic/platform=iOS' -showBuildSettings -json > release-delivery/standalone-build-settings.json
+          xcodebuild -project "$project" -scheme PhillyScan -configuration Release -destination 'generic/platform=iOS' -archivePath "$clean_dir/Standalone.xcarchive" -derivedDataPath "$clean_dir/DerivedData" CODE_SIGNING_ALLOWED=NO archive 2>&1 | tee release-delivery/standalone-archive.txt
+          /usr/bin/python3 ../scripts/verify-ios-archive.py "$clean_dir/Standalone.xcarchive" > release-delivery/standalone-archive-check.json
+          /usr/bin/python3 ../scripts/verify-ios-xcode-project.py "$clean_dir/PhillyScan-24-Xcode" "$clean_dir/Standalone.xcarchive" release-delivery/standalone-build-settings.json > release-delivery/portable-project-check.json
+          xcodebuild -version > release-delivery/BUILD-EVIDENCE.txt
+          git rev-parse HEAD >> release-delivery/BUILD-EVIDENCE.txt
+          shasum -a 256 release-delivery/PhillyScan-24-Xcode-Signing.zip >> release-delivery/BUILD-EVIDENCE.txt
+          printf '\nFresh extracted native project archived without Flutter/CocoaPods commands.\nAutomatic signing and owner team configured; CI compilation uses CODE_SIGNING_ALLOWED=NO.\nOwner Apple signing, export and validation remain unverified. No upload/submission.\nProduction compatibility and release approval remain on hold.\n' >> release-delivery/BUILD-EVIDENCE.txt
+      - name: Save project and evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: PhillyScan-24-Xcode-Signing
+          path: mobile/release-delivery/
+          retention-days: 14
+          if-no-files-found: error
+      - name: Save failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: PhillyScan-24-Signing-Project-Failure
+          path: mobile/release-delivery/
+          retention-days: 7

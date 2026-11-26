@@ -1,8 +1,4 @@
-import '../services/pro_subscription.dart';
-import '../widgets/pro_paywall.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
-import '../config/api_config.dart';
 import '../src/api_client.dart';
 import '../config/pro_preview_config.dart';
 
@@ -21,21 +17,17 @@ class OwnerSearchPage extends StatefulWidget {
 }
 
 class _OwnerSearchPageState extends State<OwnerSearchPage> {
-  late final ApiClient client = widget.client ?? ApiClient();
   final rows = <Map<String, dynamic>>[];
-  bool loading = false, denied = false;
+  bool loading = false;
+  int requestRevision = 0;
   String? error, cursor, note;
-  // Direct public-data access is restricted to debug on the fixed test host.
-  bool get preview => kDebugMode && ProPreviewConfig.enabled &&
-      ApiConfig.environment == 'test' && ApiConfig.baseUrl == ApiConfig.testBaseUrl;
-  int accessRevision = 0;
-  bool get hasAccess => preview || ProSubscription.instance.active;
+  bool get preview => ProPreviewConfig.enabled;
   late String selectedOwner = widget.owner;
   List<String> previewOwners = [];
   String quote(String value) => "'${value.replaceAll("'", "''")}'";
-  Future<Map<String, dynamic>> previewOwnerSearch() async {
-    if (!preview) throw StateError('Pro subscription required');
-    final publicClient = ApiClient(baseUrl: 'https://phl.carto.com');
+  Future<Map<String, dynamic>> publicOwnerSearch() async {
+    final publicClient =
+        widget.client ?? ApiClient(baseUrl: 'https://phl.carto.com');
     try {
       if (previewOwners.isEmpty && widget.opa != null) {
         if (!RegExp(r'^\d{9}$').hasMatch(widget.opa!))
@@ -80,8 +72,16 @@ class _OwnerSearchPageState extends State<OwnerSearchPage> {
             "SELECT DISTINCT ON (parcel_number) parcel_number, location, owner_1, owner_2 FROM opa_properties_public WHERE (UPPER(REGEXP_REPLACE(TRIM(owner_1), '\\s+', ' ', 'g')) IN ($literals) OR UPPER(REGEXP_REPLACE(TRIM(owner_2), '\\s+', ' ', 'g')) IN ($literals)) AND parcel_number ~ '^[0-9]{9}\$' ${cursor == null ? '' : 'AND parcel_number > ${quote(cursor!)}'} ORDER BY parcel_number, location, owner_1, owner_2 LIMIT 26",
       });
       final found = data['rows'] as List;
+      if (found.length > 26) throw const FormatException();
       String previous = cursor ?? '';
       for (final row in found) {
+        if (row is! Map ||
+            row['location'] is! String ||
+            (row['location'] as String).trim().isEmpty ||
+            ![row['owner_1'], row['owner_2']]
+                .every((n) => n == null || n is String)) {
+          throw const FormatException();
+        }
         final opa = row['parcel_number'].toString();
         final matches = [row['owner_1'], row['owner_2']]
             .whereType<String>()
@@ -107,68 +107,28 @@ class _OwnerSearchPageState extends State<OwnerSearchPage> {
             'Live Philadelphia OPA records. Same-name matches may be different people.',
       };
     } finally {
-      publicClient.close();
+      if (widget.client == null) publicClient.close();
     }
   }
 
   @override
   void initState() {
     super.initState();
-    ProSubscription.instance.addListener(accessChanged);
-    if (!hasAccess) {
-      denied = true;
-      error = 'Pro subscription required.';
-    } else {
-      load();
-    }
-  }
-
-  void accessChanged() {
-    if (!mounted || preview || ProSubscription.instance.active) return;
-    accessRevision++;
-    setState(() {
-      rows.clear();
-      cursor = null;
-      note = null;
-      loading = false;
-      denied = true;
-      error = 'Pro subscription required.';
-    });
-  }
-
-  @override
-  void dispose() {
-    accessRevision++;
-    ProSubscription.instance.removeListener(accessChanged);
-    if (widget.client == null) client.close();
-    super.dispose();
+    load();
   }
 
   Future<void> load() async {
-    final revision = ++accessRevision;
+    final revision = ++requestRevision;
     setState(() {
       loading = true;
       error = null;
-      denied = false;
     });
     try {
-      if (!hasAccess) {
-        throw ApiException(message: 'Pro subscription required.', statusCode: 403);
-      }
-      // A local StoreKit state only permits attempting the request. The server
-      // must authorize every page. No client tier, shared code or CARTO fallback.
-      // Authenticated session/purchase exchange remains a release dependency.
-      final data = preview
-          ? await previewOwnerSearch()
-          : await client.get('/api/owners', {
-              'name': selectedOwner,
-              if (cursor != null) 'after': cursor!,
-            });
-      if (!preview && data['ok'] != true) throw const FormatException();
+      final data = await publicOwnerSearch();
       final incoming = (data['rows'] as List)
           .map((r) => Map<String, dynamic>.from(r as Map))
           .toList();
-      if (!mounted || revision != accessRevision) return;
+      if (!mounted || revision != requestRevision) return;
       setState(() {
         final ids = rows.map((r) => r['parcel_number'].toString()).toSet();
         rows.addAll(
@@ -178,23 +138,12 @@ class _OwnerSearchPageState extends State<OwnerSearchPage> {
         note = data['note'] as String?;
       });
     } catch (e) {
-      if (!mounted || revision != accessRevision) return;
+      if (!mounted || revision != requestRevision) return;
       setState(() {
-        denied =
-            e is ApiException && (e.statusCode == 401 || e.statusCode == 403);
-        error = denied
-            ? 'Pro subscription required.'
-            : 'Owner records unavailable. Please retry.';
-        if (denied) {
-          rows.clear();
-          cursor = null;
-          note = null;
-        }
+        error = 'Owner records unavailable. Please retry.';
       });
     } finally {
-      if (mounted && revision == accessRevision) {
-        setState(() => loading = false);
-      }
+      if (mounted && revision == requestRevision) setState(() => loading = false);
     }
   }
 
@@ -236,18 +185,10 @@ class _OwnerSearchPageState extends State<OwnerSearchPage> {
         if (error != null) ...[
           const SizedBox(height: 16),
           Text(error!),
-          if (denied) ...[
-            FilledButton(
-              onPressed: () async {
-                if (await requirePro(context) && mounted) await load();
-              },
-              child: const Text('Upgrade to Pro'),
-            ),
-          ] else
-            TextButton(
-              onPressed: loading ? null : load,
-              child: const Text('Retry'),
-            ),
+          TextButton(
+            onPressed: loading ? null : load,
+            child: const Text('Retry'),
+          ),
         ],
         for (final row in rows)
           Card(

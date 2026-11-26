@@ -6,7 +6,7 @@ import 'package:philly_scan_app/src/api_service.dart';
 import 'package:philly_scan_app/src/models/property_result.dart';
 import 'package:philly_scan_app/config/pro_preview_config.dart';
 import 'package:philly_scan_app/widgets/premium_ui.dart';
-import 'search_reliability_test.dart' show ControlledViolations;
+import 'package:philly_scan_app/widgets/violation_summary_card.dart';
 
 class FreeProperty extends ApiService {
   @override
@@ -21,10 +21,9 @@ class FreeProperty extends ApiService {
 
 void main() {
   testWidgets(
-    'free aggregate and clipboard stay usable in either preview mode',
+    'summary is absent while property facts and free actions remain usable',
     (tester) async {
       final api = FreeProperty();
-      final violations = ControlledViolations()..fail = false;
       String? copied;
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
         SystemChannels.platform,
@@ -37,17 +36,27 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: premiumTheme(),
-          home: HomeScreen(apiService: api, violationsService: violations),
+          home: HomeScreen(apiService: api),
         ),
       );
       await tester.ensureVisible(find.text('Scan'));
       await tester.tap(find.text('Scan'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Recorded L&I Violations'));
-      expect(find.text('Records: 3'), findsOneWidget);
+      expect(find.byType(ViolationSummaryCard), findsNothing);
+      expect(find.text('Recorded L&I Violations'), findsNothing);
+      expect(find.text('Retry enforcement'), findsNothing);
       expect(find.textContaining('Active:'), findsNothing);
       expect(find.textContaining('History:'), findsNothing);
       expect(find.textContaining('Center City Core'), findsOneWidget);
+      for (final label in [
+        '311',
+        'L&I',
+        'Zillow',
+        'Crime trends',
+        'Search by owner'
+      ]) {
+        expect(find.text(label), findsOneWidget);
+      }
       for (final pair in [
         ('Copy Address', '123 TEST ST'),
         ('Copy Owner', 'TEST OWNER'),
@@ -60,14 +69,21 @@ void main() {
       }
       expect(find.text('Your Voice Matters'), findsNothing);
       if (!ProPreviewConfig.enabled) {
-        await tester.ensureVisible(find.text('Ask AI'));
-        await tester.tap(find.text('Ask AI'));
+        expect(find.text('Ask AI'), findsNothing);
+        expect(find.text('Subscribe'), findsNothing);
+        await tester.ensureVisible(find.text('See what’s planned').last);
+        await tester.tap(find.text('See what’s planned').last);
         await tester.pumpAndSettle();
-        expect(find.text('AI features are coming later'), findsOneWidget);
+        expect(find.text('What’s planned'), findsOneWidget);
+        expect(find.textContaining(r'$12.99/month'), findsOneWidget);
+        expect(find.textContaining('No payment is collected'), findsOneWidget);
         expect(
-          find.textContaining('not included in the current Pro'),
+          find.textContaining(
+            'Albanian, Spanish, Vietnamese, Chinese, and English',
+          ),
           findsOneWidget,
         );
+        expect(find.textContaining(r'$2.99'), findsNothing);
       }
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
@@ -76,7 +92,6 @@ void main() {
         null,
       );
       api.close();
-      violations.close();
     },
   );
 }

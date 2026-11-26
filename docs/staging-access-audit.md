@@ -1,34 +1,47 @@
-# Staging negative-access audit
+# Free-record release audit
 
-Run `node scripts/check-staging-access.mjs <full-candidate-commit-sha>` after the
-candidate is deployed to the existing staging service. The optional SHA makes a
-hosted/source mismatch fail. Omitting it leaves `source_match: null`, not verified.
+Run `node scripts/check-staging-access.mjs <full-candidate-commit-sha>` against the
+existing staging service. A different hosted commit fails; omitting the SHA leaves
+`source_match: null`, not verified. No deployment is performed.
 
-This tool makes exactly 20 sequential GET requests to the fixed staging host,
-with 15-second request deadlines, no retries and no redirects. It sends no real
-credential and writes nothing. It does not modify a deployment or start a schedule.
-Four controls check the deployed commit, exact Lambert OPA lookup and Free
-complaint/violation summaries. Eight paid routes (including legacy detail routes)
-are each probed anonymously and with a malformed bearer plus untrusted tier and
-preview claims. Pro and AI denial codes are checked separately. A denial must be
-HTTP 403, no-store, and contain only the exact generic denial envelope.
+The November 13 owner decision supersedes the historical Pro-first audit:
+all City records, including owner search, sales and crime aggregates, are free.
+Only `/api/records/signals` interpretation requires AI authorization. AI remains
+coming soon and unavailable for purchase; no billing is activated by this audit.
 
-HTTP 200/204 is a failure even when empty. HTTP 404 means the route is missing,
-not protected. Outages/timeouts are unavailable, never passing denials. Results
-omit raw bodies and exception details. A nonzero exit means failure/unavailability.
+The checker makes 20 sequential GET requests to the fixed staging host with
+15-second deadlines, no retries or redirects, and no real credentials. Controls
+check deployment, exact Lambert OPA and complaint/L&I summaries. Seven public
+record routes and one interpretation route are each probed anonymously and with
+forged bearer/tier/preview claims. Public records must return HTTP 200 with the
+expected envelope; interpretation must return the exact generic HTTP 403 denial
+with no-store and no data leakage. HTTP 404 means missing, not protected.
+Outages/timeouts remain unavailable; results omit raw bodies and exception text.
 
-The existing `check-staging.mjs` checks data quality on public debug staging; its
-12 passes do not prove entitlement protection. This separate audit is expected to
-fail on that older public deployment. Do not remove these failures or deploy gates
-alone to make this audit green: authenticated app transport must be completed first.
+The L&I summary must satisfy the mobile version-2 contract: exact OPA,
+nonnegative integer total equal to unique raw case/violation status group counts,
+valid nullable activity date, explicit unverified status mapping, and null legacy
+active/history/risk fields. Valid empty records are zero with no activity date;
+missing, incompatible or malformed data cannot pass as zero. A matching commit
+stamp alone is insufficient. This check catches a healthy older deployment whose
+summary would be rejected by the refreshed app.
 
-Even all 20 passes prove only these negative-access and Free controls. They do not
-prove valid subscriber access, Apple purchase/restore, account binding, expiry,
-revocation, owner access, release preview exclusion or simulator acceptance. Those
-remain separate gates in #2/#10/#19/#26. Crime remains AI, not Pro. The checker
-implements the current #3/#26 Pro-first contract; reconcile PR #48's different
-tier direction before choosing a public release candidate.
+The separate `check-staging.mjs` data checks do not establish this contract or AI
+protection. Even all 20 audit passes do not establish simulator runtime, signing,
+privacy, licensing, crash visibility, Apple purchases or release acceptance.
+Future paid-AI purchase/authentication gates must not block free public records.
 
-Owner simulator steps remain the proposed scenarios in `staging-checks.md` and
-mobile acceptance documents, awaiting #19 approval. No new artifact is justified
-by this backend audit alone.
+Follow the proposed iPhone 17 Pro Max scenarios in
+`free-release-reconciliation.md`, awaiting #19 approval, and #17 delivery gates.
+Do not deliver a simulator package or deploy either side of an incompatible
+app/server contract based on this audit alone. Final production/submission
+approval remains required.
+
+The owner API probes validate a bounded page of unique ascending nine-digit OPAs,
+nonblank addresses, matching recorded owner or co-owner (both simple name orders),
+source attribution, retrieval date, ambiguity note and consistent continuation
+cursor. Empty success requires explicit end-of-results metadata. This is a
+first-page API check, not proof of complete ownership coverage, cross-page
+stability, identity certainty or native navigation. The current mobile owner
+screen queries City CARTO directly; backend API success does not validate that
+separate transport, which still requires the approved native review.

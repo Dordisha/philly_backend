@@ -1,25 +1,16 @@
-PHILLY SCAN 1.1.0-preview.8 (11)
+PHILLY SCAN 1.1.0 (24) — RELEASE PREPARATION
 
-This preview adds native iOS notification code. Keep your previous working project
-as a backup. Use the FULL source folder for this preview, not just the lib folder.
+The summary section is removed; other app sections are unchanged.
 
-Fresh checkout, in the mobile folder:
-  flutter pub get
-  flutter build ios --config-only --simulator --debug --dart-define=APP_ENV=test --dart-define=PRO_PREVIEW=true
-  cd ios
-  pod install
-  open Runner.xcworkspace
+For the replacement project, unzip PhillyScan-24-Xcode-Signing.zip and
+double-click PhillyScan.xcodeproj inside the extracted folder.
+Select Runner > Signing & Capabilities > Team: Dorian Dishani.
+Choose Any iOS Device (arm64), then Product > Archive.
+Keep the entire extracted folder together. No Flutter/CocoaPods/Terminal setup.
 
-Choose Runner and an iPhone simulator, then Run. Do not open the workspace before
-preparing the generated configuration and Pods on your Mac.
+The old unsigned archive failed with "No Team Found in Archive" and is withdrawn.
+Apple signing/export on the owner's Mac, production compatibility,
+privacy/Store corrections and final release approval remain pending.
+Do not upload or submit yet. See docs/release-1.1.0-23.md.
 
-If a compiled simulator artifact is available, unzip it to Runner.app and drag it
-onto a running iPhone Simulator. It is not a Mac app; do not double-click it.
-
-Debug permits test access without payment. Profile/release stay locked.
-This source adds the update gate and notification plumbing; the existing live backend
-has not been deployed with it. No mandatory update is active and no push has been sent.
-Actual APNs testing needs Apple capability/provisioning, server secrets and a signed
-physical iPhone build. See ../docs/updates-and-announcements.md for setup.
-The approved green/gold app icon is now installed in the iOS asset catalog.
-Crime trends now use the PPD API through the new backend route (deployment required). Schools and AI answers remain unconnected.
+For simulator testing, use the separate compiled Simulator ZIP.

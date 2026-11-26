@@ -9,7 +9,6 @@ import 'package:philly_scan_app/src/api_service.dart';
 import 'package:philly_scan_app/src/models/property_result.dart';
 import 'package:philly_scan_app/src/main.dart';
 import 'package:philly_scan_app/screens/pro_overview_page.dart';
-import 'search_reliability_test.dart' show ControlledViolations;
 
 class ImmediateProperty extends ApiService {
   int scans = 0;
@@ -22,11 +21,9 @@ class ImmediateProperty extends ApiService {
 
 void main() {
   testWidgets(
-    'Home Pro scans once and opens all four live-data features without another Scan tap',
+    'Free records open without a subscription; preview also opens experimental sections',
     (tester) async {
-      if (!ProPreviewConfig.enabled) return;
       final api = ImmediateProperty();
-      final violations = ControlledViolations()..fail = false;
       final seen = <String>[];
       final client = ApiClient(
         client: MockClient((r) async {
@@ -89,17 +86,20 @@ void main() {
         MaterialApp(
           home: HomeScreen(
             apiService: api,
-            violationsService: violations,
             recordsClient: client,
           ),
         ),
       );
-      await tester.tap(find.text('Open Pro • Live data'));
+      await tester.tap(find.text('Explore property • Free'));
       await tester.pumpAndSettle();
       expect(api.scans, 1);
       expect(find.byType(ProOverviewPage), findsOneWidget);
       expect(seen, isEmpty); // Fetch a section only when opened.
-      for (final label in ['311', 'L&I', 'Resale', 'Signals']) {
+      for (final label in [
+        '311',
+        'L&I',
+        if (ProPreviewConfig.enabled) ...['Resale', 'Signals'],
+      ]) {
         final scroll = find
             .descendant(
               of: find.byType(ListView),
@@ -131,13 +131,14 @@ void main() {
       expect(seen.toSet(), {
         '/api/records/311',
         '/api/records/violations',
-        '/api/records/sales',
-        '/api/records/facts',
+        if (ProPreviewConfig.enabled) ...[
+          '/api/records/sales',
+          '/api/records/signals',
+        ],
       });
       await tester.pumpWidget(const SizedBox());
       client.close();
       api.close();
-      violations.close();
     },
   );
   testWidgets('schools stay hidden and AI questions disclose missing data', (

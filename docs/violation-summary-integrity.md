@@ -15,3 +15,7 @@ This is a coordinated server/client contract change, source only. A new app agai
 Automated backend and Flutter cases cover malformed/legacy responses, identity mismatch, inconsistent totals, duplicate status groups, conflicting case/violation statuses, valid zero, null statuses, Free summary and clipboard actions. These are not iOS runtime acceptance.
 
 Proposed iPhone 17 Pro Max cases, awaiting #19 scenario approval: open Lambert (363258000) against matching staging; compare raw counts/statuses with the City response; verify no Active/History/Low-risk or speculative flag labels; test unavailable and retry, a verified zero-result property, unknown statuses, copy actions and property switching. Existing Schools/crime/owner delivery gates still apply. No replacement simulator package until #17/#26 gates are met.
+
+## November 24 simulator repair
+
+Build 21 was compiled against production while production still returned the legacy summary shape. A successful HTTP 200 therefore correctly failed version-2 validation. Source tests and a successful app launch did not verify this card. Build 22 targets the existing repair staging service, with exact source/deployment matching enforced before packaging. The legacy response is not coerced into valid zero or safety/condition claims. The normal app is compiled after a focused real-network native reproduction covering the reported property (1539 S Lambert St, OPA 363258000), this summary, 311/L&I details and all crime radii. This focused bug verification is separate from the full approved #19 release suite.

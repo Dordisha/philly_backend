@@ -1,80 +1,24 @@
-# Philly Scan mobile — canonical Flutter source
+# Philly Scan 1.1.0 (24) — summary section removed
 
-Recovered from owner Archive.zip (Library libfile_2ff54f53d0ec81918347d8e9f5cc005e;
-SHA-256 5be8b2f81e068a0f55250aef21648238c22d95e2055654ed9dbacd17f3cc7402).
-Flutter 3.35.6 / Dart 3.9.2; source version 1.0.3+4. Generated caches,
-Pods, machine paths and signing credentials are excluded. Backend is at repo root.
+All City property records, 311, L&I, owner/co-owner search and reported crime aggregates are free. AI is informational and coming soon, with no purchase flow. Build 24 removes only the recorded-violation summary card and its automatic lookup. Property facts, copy actions and the separate L&I, 311, owner-search, Zillow and crime screens remain. The build-22 fixes and build-23 privacy/signing preparation are preserved.
 
-## Run the live-data preview on your Mac
+## Prepared files
 
-Download the feature/mobile-reliability-foundation branch again; the earlier sample ZIP does not update itself.
-From the downloaded mobile/ directory:
+- The compiled simulator ZIP runs against the existing matching test server. Unzip and drag Runner.app onto the open iPhone 17 Pro Max simulator.
+- The replacement workflow creates **PhillyScan-24-Xcode-Signing.zip** with **PhillyScan.xcodeproj**, precompiled release frameworks and native sources. Open this project, select the owner team under Runner > Signing & Capabilities, select Any iOS Device, and choose Product > Archive. Flutter/CocoaPods/Terminal are not required by this delivered project. Apple signing and validation must still be completed on the owner's Mac.
+- **Withdrawn delivery:** the earlier unsigned `PhillyScan-1.1.0-23-Xcode-Archive.zip` failed in Organizer with “No Team Found in Archive.” Its unsigned compilation checks did not establish signing or validation readiness; do not retry it or patch its team metadata.
+- A raw GitHub source ZIP is developer source. It is not the prepared archive and is not a portable, dependency-free Xcode project.
 
-```sh
-flutter pub get
-open -a Simulator
-flutter run --debug --dart-define=APP_ENV=test --dart-define=PRO_PREVIEW=true
-```
+## Release hold
 
-Scan a property, then tap **311 records**, **L&I records**, **Resale value** or
-**Signals** below its basic facts. Upgrade to Pro also opens the records after a
-property is scanned. No purchase or Apple login is needed. Home Upgrade without
-a property asks you to scan first. Existing enforcement details opens the L&I tab.
+The production archive uses APP_ENV=prod, preview/internal testing disabled, and the owner-supplied privacy-policy URL in release-settings.json. Production still needs a compatible backend rollout and fresh verification; the policy and App Store disclosures need the reviewed changes. The exact public 1.0.3 client-to-host mapping is not established, so backward compatibility cannot be assumed.
 
-- 311: public service requests at the exact published address and ZIP. No OPA field exists in this dataset. It may include shared-building/street requests and excludes private/unpublished records.
-- L&I: actual violation rows matched by parcel OPA; published case/violation statuses are preserved separately.
-- Resale: nearby OPA last-recorded sales, 800 m, last 24 months, same category/building code, floor area within 25%. View actual prices/dates/areas/distances and raw OPA condition codes.
-- Experimental resale range: price-per-sq-ft quartiles times subject size, using displayed-page sales >= $50,000 with valid size and at least three sales. User can select a condition scenario and explicitly adjust the assumed price by -30% to +50%. Condition selection itself adds no premium. Transaction type/renovation condition remain unverified; the interval is a benchmark, not a confidence interval/appraisal/profit calculation. Refreshing the next page changes the comparison sample.
-- Signals: separate transparent context rules using last recorded sale >=15 years and different published mailing street, each with underlying evidence/explanation. These yield at most weak evidence; no direct owner intentions, sale probability or acceptable offer price is invented.
-- Listing status stays Unknown until an authorized listing feed is connected.
-- Records are paginated (25 per page) with retry/source/retrieved date; raw missing values stay Not recorded. A failure does not become zero records.
+Apple signing/export, final native acceptance, privacy/licensing/crash review, and owner authorization are still required. Do not upload or submit this preparation archive while these gates remain open. See the [build-23 release history](../docs/release-1.1.0-23.md) and tracker #18 for current acceptance evidence.
 
-TEST uses existing free https://philly-scan-repair-test.onrender.com.
-Both property/enforcement use config/api_config.dart. APP_ENV=prod explicitly targets
-https://philly-backend-main.onrender.com; API_BASE_URL may override with an HTTPS origin.
-Defaults are TEST even for release. Reads have 45-second client deadlines.
-PRO_PREVIEW is debug-only; profile/release ignore the bypass. This is not a real
-entitlement or purchase implementation. The obsolete fictional sample screen has been removed.
+## Existing subscriptions
 
-## Checks
+No new subscription is sold by this candidate. Existing monthly/annual products, offers, codes, customers and renewals must be inventoried read-only before proposing any change. Removing purchase UI does not cancel renewals. Nothing in this package authorizes removing products from sale, changing entitlements, refunds or customer notices.
 
-```sh
-flutter analyze
-flutter test
-flutter test --dart-define=PRO_PREVIEW=true
-```
+## Developer source setup
 
-Repo root: npm test. App source changes need a fresh local run; a backend redeploy
-does not update an already-built simulator client.
-
-## Owner acceptance
-
-1. Scan City Hall and a residential property by address/OPA. Confirm property identity.
-2. Tap 311 and L&I and inspect actual IDs, dates and statuses; try Previous/Next.
-3. Open Resale value for a residential property; inspect each recorded sale, change
-   the scenario/price assumption, and check the estimated range changes.
-4. Open Signals: each factor must cite the underlying property data and its rule.
-5. Try no connectivity and retry. Switching tabs/properties must not show old records.
-6. Test quick input edits, invalid addresses and explicit suggestion selection.
-7. Normal build without PRO_PREVIEW must keep detail access gated.
-
-No signed binary, TestFlight upload or store submission is created by these tests.
-Keep draft until owner device testing and explicit production-release direction.
-Accepted planned prices: $2.99/month or $24.99/year. Charges inactive; real
-server-verified entitlement/purchase/restore validation remains a release gate.
-
-## R2 Pro entry fix
-
-Xcode Debug builds now enable free live-data testing by default; no dart-define is required.
-PRO_PREVIEW=false can explicitly disable it; profile/release builds remain gated.
-The home screen shows LIVE DATA TEST • R2 and Open Pro • Live data. Clicking Pro
-looks up the entered address if needed and opens an overview showing 311 count,
-L&I count, a resale range when supported, signals and market-data availability.
-Each card opens its underlying data. Market status is Unknown until a permitted
-listing feed is connected; no listing check is claimed.
-
-The resale calculation remains an experimental sales benchmark with explicit assumptions;
-signals remain weak context when no direct selling-intent evidence exists. Do not present
-these as a fully validated pricing model or completed strong/medium seller prediction.
-
-Public app rule: paid records, resale and signals must stay locked until a successful verified Apple subscription purchase. Cancelled/failed/pending/unverified purchases do not unlock Pro. Server-verified entitlements, restore and expiry/revocation checks are required before paid release (issue #2). The debug convenience is never a production payment bypass.
+PREPARE_TESTFLIGHT.command remains a developer convenience for a Mac with Flutter/CocoaPods configured. Its default build number comes from pubspec.yaml. It is not the owner delivery path and does not establish native or production acceptance.

@@ -1,3 +1,25 @@
+## 1.1.0 — build 23 — 2026-11-24
+
+- Adds the app-level privacy manifest for its local notification preference (UserDefaults reason CA92.1); tracking remains disabled.
+- Native test/simulator packaging explicitly includes the configured privacy-policy URL.
+- Adds unsigned iPhoneOS archive preparation and archive/manifest/version/architecture/extraction verification. No signing, upload, submission or production deployment.
+- Corrects stale build-19 source instructions and keeps existing-subscription changes on hold for a read-only inventory and owner review.
+
+## 1.1.0 — build 22 — 2026-11-24
+
+- Simulator delivery targets the existing matched repair staging backend. The obsolete hosted summary remains rejected; no false zero or condition inference.
+- Crime retries one temporary server/connection failure, preserves the selected OPA/radius and rejects mismatched results.
+- Packaging now requires live hosted contract checks and focused iPhone 17 Pro Max reproduction of Lambert summary, 311/L&I details and all crime radii.
+- Displayed version, package version and VERSION.txt agree. Production and Store remain unchanged.
+
+# 1.1.0 (19) — Free launch candidate
+
+- All public-record features remain free; no Pro purchase flow.
+- Production AI feature buttons replaced with an informational Coming soon card.
+- Planned AI homebuyer research is $12.99/month; no purchase or AI service available yet.
+- Planned languages and buying-cost guidance described without claiming availability.
+- Xcode build number follows Flutter; Mac preparation runs analysis and free-mode tests.
+
 ## 1.1.0-preview.8 (11)
 
 - Hide Schools from the feature menu; deferred to January 2027 data validation, otherwise drop it.
