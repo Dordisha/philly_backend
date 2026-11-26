@@ -1,3 +1,54 @@
+## November 26 — physical iPhone termination evidence (#19/#26/#27)
+
+The November 25 owner screenshots show `Thread 1: signal SIGKILL` on a connected
+iPhone. The installed build and termination cause are not established. Assembly
+string literals are not runtime log messages. This blocks physical-device
+acceptance; it does not invalidate the earlier focused staging Simulator and
+unsigned archive results for delivered 1.1.0 (24), source
+`2688de44e53a7dde6d2e3a7c92837f79373cfaee`.
+
+### Existing diagnostic request and fallback
+
+The release chat already requested a time-matched Runner report. Check new private
+attachments first; do not repeat that request or generate a speculative ZIP.
+The following is a collection procedure, not a claim of device execution:
+
+1. If attached to Xcode, choose **Debug > Detach**. Launch PhillyScan once from
+   the iPhone Home Screen and record the exact local time and time zone.
+2. On iPhone, open **Settings > Privacy & Security > Analytics & Improvements >
+   Analytics Data**. Look for a matching Runner report. A nearby JetsamEvent is
+   relevant only if it identifies Runner as a terminated process; its presence
+   alone does not establish that PhillyScan was killed for memory pressure.
+3. If neither supplies the reason, connect the iPhone to the Mac. In Finder open
+   **Applications > Utilities > Console**. Select the connected iPhone in the
+   sidebar, start streaming if needed, launch once and retain only the narrow
+   time window around that launch. Do not substitute Mac host logs.
+4. Keep original diagnostics private. Record findings without copying device IDs,
+   private paths, searched addresses or complete reports into GitHub comments.
+   Use named menus; if a shortcut is needed, spell out Shift and Command.
+
+### Required evidence before changing the app
+
+- Match app/bundle identity, version/build, device OS, launch/termination times and
+  time zone. Do not assume the installed app equals the latest delivered ZIP.
+- Read the termination namespace/code/reason and responsible process, when
+  present. Missing fields stay unknown; SIGKILL alone is not a diagnosis of
+  signing, watchdog, memory pressure or a Flutter/native defect.
+- Match executable and framework image UUIDs to dSYMs from the exact installed
+  build. The owner's freshly archived Runner may differ from the CI Runner;
+  retain its own archive/symbols. Never symbolicate with a merely similar build.
+- After a supported fix, validate the resulting exact build and repeat the
+  relevant authorized regression/launch checks. Do not turn a focused case into
+  full-suite, Organizer validation, TestFlight or production acceptance.
+
+[Apple diagnostic collection guidance](https://developer.apple.com/documentation/xcode/acquiring-crash-reports-and-diagnostic-logs)
+was reviewed November 26. The removed City violation summary remains removed.
+Retained L&I/311 and crime checks use the signing package's production host;
+owner/co-owner search uses City CARTO directly, as mapped below. A hosted owners
+endpoint or the retired summary contract cannot substitute for those app flows.
+
+---
+
 # Read-only staging checks
 
 ## Current build 24 release review — November 25, 2026
